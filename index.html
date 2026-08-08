@@ -70,6 +70,7 @@
     color:color-mix(in srgb,var(--color-text) 85%,transparent);white-space:nowrap;
     text-shadow:0 0 3px var(--color-bg),0 0 3px var(--color-bg),0 0 5px var(--color-bg)}
   .clabel > span{display:inline-block;transform:translate(-50%,-50%)}
+  .sat .clabel{color:#f3f2f2;text-shadow:0 0 3px #201f1d,0 0 3px #201f1d,0 0 5px #201f1d}
   .clabel::before{display:none}
   .peakIcon{display:grid;place-items:center}
   .gIcon{display:grid;place-items:center;
@@ -211,6 +212,7 @@
           <label class="seg-opt"><input type="radio" name="base" value="roads" checked class="sr-only">Roads</label>
           <label class="seg-opt"><input type="radio" name="base" value="terrain" class="sr-only">Terrain</label>
           <label class="seg-opt"><input type="radio" name="base" value="paper" class="sr-only">Paper</label>
+          <label class="seg-opt"><input type="radio" name="base" value="sat" class="sr-only">Sat</label>
         </div>
       </div>
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
@@ -269,8 +271,9 @@
     <p>Live layers come from <a href="https://www.pasda.psu.edu/" target="_blank" rel="noopener">PASDA</a>
       (Pennsylvania Spatial Data Access, Penn State), whose underlying agencies include the PHMC, DCNR,
       PennDOT, DEP, the Fish &amp; Boat and Game Commissions, WeConservePA, FEMA and NGS. County geometry
-      is U.S. Census via us-atlas. Street tiles © OpenStreetMap contributors; hillshade by Esri and USGS.
-      Marker text and details are from the Pennsylvania Historical &amp; Museum Commission.</p>
+      is U.S. Census via us-atlas. Street tiles © OpenStreetMap contributors; hillshade and satellite
+      imagery by Esri; USGS topographic quads via Esri; railway overlay © OpenRailwayMap contributors
+      (CC-BY-SA). Marker text and details are from the Pennsylvania Historical &amp; Museum Commission.</p>
     <h3>Honesty about the data</h3>
     <ul class="fine">
       <li>County high points are the highest <i>named</i> summit per county; the true maximum is often an unnamed rise.</li>
@@ -687,7 +690,14 @@ const DATA=[
     ['Project id',val(p.OTHER_FACI)]]},
 
  {group:'Hazards',id:'flood',label:'FEMA flood hazard',sub:'National Flood Hazard Layer · from zoom 9',
-  src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}}
+  src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}},
+
+ {group:'Map styles',id:'histtopo',label:'USGS topo quads',sub:'Scanned USGS topographic quads · Esri',
+  kind:'raster',tileUrl:'https://server.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}',
+  opacity:.75,maxNativeZoom:15,attribution:'USGS topo: Esri, USGS',style:{color:'#7a6a4f'}},
+ {group:'Map styles',id:'orm',label:'Railways',sub:'Active & abandoned lines · OpenRailwayMap',
+  kind:'raster',tileUrl:'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
+  opacity:.9,attribution:'© OpenRailwayMap (CC-BY-SA)',style:{color:'#b04a3a'}}
 ];
 
 const BASE_DEFS=[
@@ -713,14 +723,19 @@ const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoo
    beneath the streets rather than replacing them. */
 const hill=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:16,maxNativeZoom:16,attribution:'Hillshade: Esri, USGS'});
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19,attribution:'Imagery: Esri, Maxar, Earthstar Geographics'});
 tiles.addTo(map);
 function setBase(name){
   const mapEl=document.getElementById('map');
-  mapEl.classList.toggle('roads',name!=='paper');
+  mapEl.classList.toggle('roads',name==='roads'||name==='terrain');
   mapEl.classList.toggle('terrain',name==='terrain');
+  mapEl.classList.toggle('sat',name==='sat');
   if(name==='terrain'){ if(!map.hasLayer(hill)) hill.addTo(map); }
   else if(map.hasLayer(hill)) map.removeLayer(hill);
-  if(name==='paper'){ if(map.hasLayer(tiles)) map.removeLayer(tiles); }
+  if(name==='sat'){ if(!map.hasLayer(sat)) sat.addTo(map); }
+  else if(map.hasLayer(sat)) map.removeLayer(sat);
+  if(name==='paper'||name==='sat'){ if(map.hasLayer(tiles)) map.removeLayer(tiles); }
   else if(!map.hasLayer(tiles)) tiles.addTo(map);
   tiles.setOpacity(name==='terrain'?.5:1);
   if(state.feats.length) countyLayer.setStyle(countyStyle);
@@ -858,6 +873,10 @@ async function fetchLayer(d,box){
 /* ArcGIS MapServer image export, tiled — the only sane way to draw something as
    large as the national flood hazard polygons. */
 function rasterLayer(d){
+  /* Plain XYZ tile overlays (topo quads, railways) skip the export machinery. */
+  if(d.tileUrl) return L.tileLayer(d.tileUrl,{pane:'pRaster',opacity:d.opacity??.5,
+    minZoom:d.minZoom??0,maxZoom:19,maxNativeZoom:d.maxNativeZoom??19,
+    attribution:d.attribution??''});
   const T=L.TileLayer.extend({getTileUrl(coords){
     const ts=this.getTileSize(), nwP=coords.scaleBy(ts), seP=nwP.add(ts);
     const nw=this._map.unproject(nwP,coords.z), se=this._map.unproject(seP,coords.z);
@@ -867,8 +886,8 @@ function rasterLayer(d){
       +'&format=png32&transparent=true&dpi=96&f=image'
       +(d.layers?'&layers=show:'+d.layers:'');
   }});
-  return new T('',{pane:'pRaster',opacity:.5,tileSize:512,minZoom:9,maxZoom:19,
-    updateWhenIdle:true,keepBuffer:0,attribution:'FEMA NFHL via PASDA'});
+  return new T('',{pane:'pRaster',opacity:d.opacity??.5,tileSize:512,minZoom:d.minZoom??9,maxZoom:19,
+    updateWhenIdle:true,keepBuffer:0,attribution:d.attribution??'FEMA NFHL via PASDA'});
 }
 
 /* Layers too big to hold statewide load only what the viewport covers, and reload

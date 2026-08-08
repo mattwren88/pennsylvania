@@ -41,7 +41,8 @@ decade.
   via ArcGIS REST at `mapservices.pasda.psu.edu`. Underlying agencies: PHMC,
   DCNR, PennDOT, DEP, PA Fish & Boat, PA Game Commission, WeConservePA, FEMA, NGS.
 - **U.S. Census** county geometry, via `us-atlas`.
-- **OpenStreetMap** street tiles; **Esri/USGS** hillshade.
+- **OpenStreetMap** street tiles; **Esri** hillshade & satellite imagery; **USGS**
+  topo quads via Esri; **OpenRailwayMap** railway overlay (CC-BY-SA).
 - `data/phmc-historical-markers.csv` — the PHMC marker export this was built from.
 - `data/markers.json` — the parsed, coordinate-checked markers the page loads.
 
