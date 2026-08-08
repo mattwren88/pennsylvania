@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pennsylvania — A Layered Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_ds/classical-fc799135-60a7-4ab1-a846-e89433fa9a8b/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;overflow:hidden}
+  a{color:var(--color-accent-700);text-decoration:none;border-bottom:1px solid var(--color-divider)}
+  a:hover{color:var(--color-accent);border-bottom-color:var(--color-accent)}
+  #app{height:100vh;display:grid;grid-template-rows:auto 1fr}
+  #body{display:grid;grid-template-columns:344px 1fr;min-height:0}
+  #rail{border-right:1px solid var(--color-divider);display:flex;flex-direction:column;min-height:0;
+        overflow-y:auto;
+        background:color-mix(in srgb, var(--color-surface) 60%, var(--color-bg))}
+  .rail-pad{padding:var(--space-3) var(--space-4)}
+  #panes{flex:none}
+  .kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+          color:color-mix(in srgb,var(--color-text) 55%, transparent);font-family:var(--font-body)}
+  .kicker.gold{color:var(--color-accent-700)}
+  .grp{margin-top:var(--space-3)}
+  .grp:first-child{margin-top:0}
+  .layer{display:grid;grid-template-columns:14px 24px 1fr;align-items:start;gap:8px;
+         padding:5px 0;cursor:pointer;font-size:13px;line-height:1.3}
+  .layer input{appearance:none;width:14px;height:14px;margin:3px 0 0;border-radius:2px;
+               border:1.5px solid var(--color-divider);background:transparent;cursor:pointer}
+  .layer:hover input{border-color:var(--color-accent)}
+  .layer input:checked{border-color:var(--color-accent);background:var(--color-accent);
+    box-shadow:inset 0 0 0 2px var(--color-bg)}
+  .layer svg{margin-top:3px}
+  .layer .sub{display:block;font-size:11px;line-height:1.35;margin-top:1px;
+              color:color-mix(in srgb,var(--color-text) 50%, transparent)}
+  .layer.busy .sub::after{content:' · loading…';color:var(--color-accent-700)}
+  .layer.fail .sub::after{content:' · could not load';color:var(--color-accent-800)}
+  .seg{width:100%}
+  .seg-opt{flex:1;justify-content:center;text-align:center}
+  select.input{appearance:none;background-image:none;width:100%}
+  #results{border-top:1px solid var(--color-divider);flex:none}
+  .res{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--color-divider);
+       padding:9px var(--space-4);cursor:pointer;font-family:var(--font-body);color:inherit}
+  .res:hover{background:color-mix(in srgb,var(--color-accent) 8%, transparent)}
+  .res b{font-family:var(--font-heading);font-weight:600;font-size:15px;display:block;line-height:1.2}
+  .res span{font-size:11px;letter-spacing:.03em;color:color-mix(in srgb,var(--color-text) 55%, transparent);
+            font-variant-numeric:tabular-nums}
+  .res.sel{background:color-mix(in srgb,var(--color-accent) 14%, transparent)}
+  #stage{position:relative;min-height:0;overflow:hidden}
+  #map{position:absolute;inset:0;background:var(--color-bg);font-family:var(--font-body)}
+  .roads .leaflet-tile-pane{filter:sepia(.42) saturate(.22) contrast(1.02) brightness(1.09);opacity:.82}
+  .terrain .leaflet-tile-pane{filter:sepia(.3) saturate(.3) contrast(1.04) brightness(1.02);opacity:1}
+  .leaflet-container{background:var(--color-bg)}
+  .leaflet-control-attribution{background:color-mix(in srgb,var(--color-surface) 82%, transparent)!important;
+    font-family:var(--font-body);font-size:9.5px;color:color-mix(in srgb,var(--color-text) 62%,transparent)}
+  .leaflet-control-attribution a{border-bottom:0}
+  .leaflet-tooltip{font-family:var(--font-body);font-size:11.5px;border-radius:2px;
+    border:1px solid var(--color-divider);box-shadow:var(--shadow-sm)}
+  .clabel{background:none;border:0;box-shadow:none;padding:0;font-family:var(--font-heading);font-weight:500;
+    color:color-mix(in srgb,var(--color-text) 72%,transparent);white-space:nowrap;
+    text-shadow:0 0 3px var(--color-bg),0 0 3px var(--color-bg),0 0 5px var(--color-bg)}
+  .clabel > span{display:inline-block;transform:translate(-50%,-50%)}
+  .clabel::before{display:none}
+  .peakIcon{display:grid;place-items:center}
+  .gIcon{display:grid;place-items:center;
+    filter:drop-shadow(0 0 1.5px #f3f2f2) drop-shadow(0 0 1.5px #f3f2f2)}
+  .gIcon svg{transform:scale(var(--gs,1))}
+  .gIcon:hover{filter:drop-shadow(0 0 2px #f3f2f2) drop-shadow(0 0 4px #b68235)}
+  #panel{position:absolute;top:var(--space-4);right:var(--space-4);width:352px;max-height:calc(100% - var(--space-8));
+    overflow:auto;background:var(--color-surface);border:1px solid var(--color-divider);z-index:600;
+    border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:var(--space-4);display:none}
+  #panel.open{display:block}
+  #panel h2{font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.12;margin:8px 0 2px}
+  #panel .body{font-size:13.5px;line-height:1.62;text-align:justify;hyphens:auto;margin:var(--space-3) 0 0}
+  #panel .loc{font-size:12px;line-height:1.5;color:color-mix(in srgb,var(--color-text) 62%,transparent);margin-top:6px}
+  #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);margin:var(--space-3) 0 0;font-size:11.5px}
+  #panel dt{letter-spacing:.1em;text-transform:uppercase;font-size:9.5px;padding-top:2px;
+            color:color-mix(in srgb,var(--color-text) 50%,transparent)}
+  #panel dd{margin:0;font-variant-numeric:tabular-nums}
+  #panel .chips{display:flex;flex-wrap:wrap;gap:5px}
+  #panel .chips .tag{font-size:10.5px}
+  #close{position:absolute;top:10px;right:10px;background:none;border:0;cursor:pointer;font-size:18px;line-height:1;
+    color:color-mix(in srgb,var(--color-text) 45%,transparent);padding:4px 6px;border-radius:var(--radius-md)}
+  #close:hover{color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
+  #legend{position:absolute;left:var(--space-4);bottom:26px;z-index:600;font-size:11px;width:212px;
+    color:color-mix(in srgb,var(--color-text) 72%,transparent);display:none;flex-direction:column;
+    background:color-mix(in srgb,var(--color-surface) 93%, transparent);
+    border:1px solid var(--color-divider);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+  #lgHead{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+    background:none;border:0;cursor:pointer;padding:9px 12px;font-family:var(--font-body);color:inherit}
+  #lgHead:hover{color:var(--color-accent-700)}
+  #lgHead svg{transition:transform .15s;flex:none}
+  #legend.shut #lgHead svg{transform:rotate(-90deg)}
+  #lgBody{padding:0 12px 10px;max-height:min(52vh,420px);overflow:auto}
+  #legend.shut #lgBody{display:none}
+  #legend .lg-grp{font-family:var(--font-heading);font-size:12.5px;font-weight:600;margin:9px 0 3px;
+    color:var(--color-text);padding-bottom:2px;border-bottom:1px solid var(--color-divider)}
+  #legend .lg-grp:first-child{margin-top:0}
+  #legend .key{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:7px;line-height:1.3;
+    padding:1.5px 0}
+  #legend .key svg{display:block}
+  #tools{position:absolute;right:var(--space-4);bottom:26px;z-index:600;display:flex;gap:6px}
+  #tools button{background:var(--color-surface);font-size:12px;padding:5px 11px}
+  #tools button.on{border-color:var(--color-accent);color:var(--color-accent-700);
+    background:color-mix(in srgb,var(--color-accent) 12%, var(--color-surface))}
+  #timeline{display:none;flex-direction:column;gap:3px}
+  #timeline.on{display:flex}
+  .tl-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px}
+  #tlLabel{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:14px}
+  #tl{appearance:none;width:100%;height:16px;background:none;cursor:pointer}
+  #tl::-webkit-slider-runnable-track{height:2px;background:var(--color-divider)}
+  #tl::-webkit-slider-thumb{appearance:none;width:13px;height:13px;margin-top:-5.5px;border-radius:50%;
+    background:var(--color-accent);border:2px solid var(--color-bg)}
+  #tl::-moz-range-track{height:2px;background:var(--color-divider)}
+  #tl::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--color-accent);border:2px solid var(--color-bg)}
+  .res .src{float:right;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+  .grp-head{padding:8px var(--space-4) 4px;background:color-mix(in srgb,var(--color-accent) 5%,transparent);
+    border-bottom:1px solid var(--color-divider)}
+  .count{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:15px}
+  #loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-heading);z-index:700;
+    font-size:17px;color:color-mix(in srgb,var(--color-text) 55%,transparent);background:var(--color-bg)}
+  :focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="nav">
+    <span class="nav-brand" style="font-size:19px">Pennsylvania</span>
+    <span class="kicker" style="margin-left:-8px">A Layered Map</span>
+    <span style="flex:1"></span>
+    <span class="kicker"><span class="count" id="hdrCount">—</span> markers shown</span>
+  </header>
+  <div id="body">
+    <aside id="rail">
+      <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
+        <div class="kicker gold">Base</div>
+        <div class="seg" id="base">
+          <label class="seg-opt"><input type="radio" name="base" value="roads" checked hidden>Roads</label>
+          <label class="seg-opt"><input type="radio" name="base" value="terrain" hidden>Terrain</label>
+          <label class="seg-opt"><input type="radio" name="base" value="paper" hidden>Paper</label>
+        </div>
+      </div>
+      <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
+        <div class="kicker gold">Search everything</div>
+        <input class="input" id="q" type="search" placeholder="Markers, parks, summits, towns…" autocomplete="off">
+        <select class="input" id="county"><option value="">All 67 counties</option></select>
+        <select class="input" id="type"><option value="">All marker types</option></select>
+        <div id="timeline">
+          <div class="tl-head"><span class="kicker">Dedicated</span><span id="tlLabel">All years</span></div>
+          <input type="range" id="tl" min="0" max="0" step="1" value="0">
+        </div>
+      </div>
+      <div id="panes"><div class="rail-pad" id="layers"></div></div>
+      <div id="results"></div>
+    </aside>
+    <div id="stage">
+      <div id="map" class="roads"></div>
+      <div id="legend"></div>
+      <div id="tools">
+        <button class="btn btn-secondary" id="measure" title="Measure a distance">Measure</button>
+        <button class="btn btn-secondary" id="share" title="Copy a link to this view">Copy link</button>
+      </div>
+      <div id="panel"><button id="close" title="Close">×</button><div id="panelBody"></div></div>
+      <div id="loading">Drawing the Commonwealth…</div>
+    </div>
+  </div>
+</div>
+<script>
+const PASDA='https://mapservices.pasda.psu.edu/server/rest/services/pasda/';
+const ACCENT='#b68235';
+const INK='#201f1d', PAPER='#f3f2f2';
+const TYPE_COLOR={'Roadside':'#a06f24','City':'#4a3108','Plaque':'#c28d41'};
+const LANDMARKS=[
+  {kind:'high',name:'Mount Davis',elev:'3,213 ft',county:'Somerset',lat:39.78619,lon:-79.17586,
+   note:'The highest natural point in Pennsylvania, on a ridge crest in Forbes State Forest near Markleton. A paved road runs almost to the summit; an observation tower stands near the true high point. Established as the state high point by the USGS in 1921.'},
+  {kind:'high',name:'Herman Point',elev:'3,034 ft',county:'Bedford',lat:40.29586,lon:-78.57373,
+   note:'A satellite summit of Blue Knob and one of the few points in the state above 3,000 feet. Inside Blue Knob State Park, it serves as the trailhead for the Lost Turkey Trail.'},
+  {kind:'low',name:'Delaware River at the state line',elev:'Sea level',county:'Delaware',lat:39.7947,lon:-75.4149,
+   note:'Pennsylvania\u2019s lowest elevation: the tidal Delaware River where it leaves the Commonwealth below Marcus Hook. From here to Mount Davis the state rises 3,213 feet.'}
+];
+
+const GLYPH={
+  anchor:'<path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/>',
+  bridge:'<path d="M2 14 12 5l10 9"/><path d="M2 20h20"/><path d="M6 20v-4"/><path d="M18 20v-4"/>',
+  tower:'<path d="M12 3v18"/><path d="M7 21 12 3l5 18"/><path d="M8.6 13h6.8"/>',
+  monument:'<path d="M12 2 8 9h8z"/><path d="M12 9v9"/><path d="M7 21h10"/>',
+  well:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/>',
+  place:'<path d="M4 20V9l8-5 8 5v11"/><path d="M10 20v-6h4v6"/>',
+  tent:'<path d="M12 4 4 20h16z"/><path d="M12 4v16"/>',
+  summit:'<path d="M2 20 9 6l4 7 3-4 6 11z"/><path d="M6.6 13.5 9 12l2 1.6"/>',
+  falls:'<path d="M6 3v9M12 3v9M18 3v9"/><path d="M4 16c2.4 0 2.4 2 4.8 2s2.4-2 4.8-2 2.4 2 4.8 2"/><path d="M4 20c2.4 0 2.4 2 4.8 2s2.4-2 4.8-2 2.4 2 4.8 2"/>',
+  mine:'<path d="M3 18 15 6"/><path d="M11 3c4 0 8 3 9 8-4-1-8 1-11 4"/><path d="M2 21l3-3"/>',
+  dam:'<path d="M4 4v16"/><path d="M20 4v16"/><path d="M4 9h16"/><path d="M7 14c2 0 2 2 4 2s2-2 4-2 2 2 4 2"/>',
+  cross:'<path d="M12 3v18"/><path d="M6 9h12"/>',
+  mail:'<rect x="2.5" y="5" width="19" height="14" rx="1.6"/><path d="m3 6.5 9 6.5 9-6.5"/>',
+  hazard:'<path d="M12 3 1.6 21h20.8z"/><path d="M12 9.5v5"/><path d="M12 18h.01"/>',
+  droplet:'<path d="M12 2.7 6.6 9.4a7.2 7.2 0 1 0 10.8 0z"/>',
+  ruin:'<path d="M3 21V8l4-3v4l5-3v5l5-3v13z"/><path d="M3 21h18"/>'
+};
+/* Each glyph rides on an opaque chip with a colored ring — a bare stroke disappears
+   into the road tiles no matter how dark it is. */
+const svgIcon=(g,color,px)=>`<svg width="${px*1.55}" height="${px*1.55}" viewBox="-6 -6 36 36" aria-hidden="true">
+  <circle cx="12" cy="12" r="16" fill="#faf9f8" stroke="${color}" stroke-width="3"/>
+  <g fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round"
+     stroke-linejoin="round">${GLYPH[g]}</g></svg>`;
+
+const fmt=n=>Number(n).toLocaleString('en-US');
+const acres=v=>v==null?'—':fmt(Math.round(v))+' acres';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clean=s=>String(s||'').replace(/\s*\(historical\)\s*$/i,'').trim();
+/* GNIS appends "(historical)" to features it records as no longer there. */
+const gone=p=>/\(historical\)/i.test(p.FEATURE_NAME||'');
+const val=s=>{const t=String(s==null?'':s).trim();return t&&t!=='0'&&t!=='null'?t:null};
+const miles=v=>v==null||!isFinite(v)?null:Number(v).toFixed(1)+' mi';
+const ord=v=>{if(!(v>0))return null;const n=Math.round(v),t=n%100,u=n%10;
+  return n+((t>=11&&t<=13)?'th':u===1?'st':u===2?'nd':u===3?'rd':'th')};
+const pctile=v=>{const s=ord(v);return s?s+' pctile':null};
+/* GNIS record dates are epoch ms and describe the gazetteer entry, not the place itself. */
+const ymd=v=>{const n=typeof v==='number'?v:Date.parse(v);
+  if(!isFinite(n)||!n)return null;
+  return new Date(n).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'})};
+const url=u=>{const t=val(u);if(!t)return null;return /^https?:/i.test(t)?t:'https://'+t};
+/* PASDA activity columns are undocumented codes; 1 reads as permitted, 2 as not. */
+const yes=v=>v===1||/^yes$/i.test(String(v||'').trim());
+const permits=(p,map)=>Object.entries(map).filter(([k])=>yes(p[k])).map(([,l])=>l);
+
+/* Live PASDA / Penn State map services. Each entry is fetched the first time its box is ticked. */
+const DATA=[
+ {group:'Protected land',id:'parks',label:'State parks',sub:'124 DCNR parks',
+  src:'DCNR/MapServer/8',fields:'PARK_NAME,GIS_ACRE,COUNTY,TYPE,NICKNAMES,WEBLINK',simplify:0.0006,kind:'poly',
+  style:{color:'#2f6b45',weight:1.6,fillColor:'#6fa87c',fillOpacity:.38},
+  name:p=>p.PARK_NAME,sub2:p=>val(p.TYPE)||'State park',
+  rows:p=>[['Acres',acres(p.GIS_ACRE)],['County',val(p.COUNTY)],['Also known as',val(p.NICKNAMES)]],
+  links:p=>[['Official park page',url(p.WEBLINK)]]},
+ {group:'Protected land',id:'forests',label:'State forests',sub:'20 forest districts, 670 parcels',
+  src:'DCNR/MapServer/6',fields:'SF_Name,Acreage',simplify:0.0012,kind:'poly',
+  style:{color:'#1e4d33',weight:1.2,dashArray:'4 3',fillColor:'#4a8a5e',fillOpacity:.26},
+  name:p=>(p.SF_Name?p.SF_Name+' State Forest':'State forest'),sub2:()=>'Bureau of Forestry',
+  rows:p=>[['Acres',acres(p.Acreage)]]},
+ {group:'Protected land',id:'wild',label:'Wild &amp; natural areas',sub:'141 designated tracts',
+  src:'DCNR/MapServer/9',fields:'WnaName,WnaType,SF_Name,Acreage,DESCRIPTIO',simplify:0.0008,kind:'poly',
+  style:{color:'#0f3a26',weight:2,dashArray:'7 3 1 3',fill:false},
+  name:p=>p.WnaName,sub2:p=>p.WnaType||'Wild area',
+  rows:p=>[['Type',p.WnaType],['Forest',p.SF_Name],['Acres',acres(p.Acreage)]],text:p=>p.DESCRIPTIO},
+ {group:'Protected land',id:'game',label:'State game lands',sub:'309 Game Commission parcels',
+  src:'PennsylvaniaGameCommission/MapServer/4',fields:'SGL,NAME,ACRES',simplify:0.0012,kind:'poly',
+  style:{color:'#5c7a3a',weight:1.3,dashArray:'1 3',fillColor:'#8ea862',fillOpacity:.3},
+  name:p=>p.NAME||('State Game Lands '+p.SGL),sub2:()=>'Game Commission',
+  rows:p=>[['SGL no.',p.SGL],['Acres',acres(p.ACRES)]]},
+ {group:'Trails',id:'at',label:'Appalachian Trail',sub:'229 miles across the state',
+  src:'AppalachianTrail/MapServer/0',fields:'TRAIL_CLUB,LENGTH_MI',simplify:0.0004,kind:'line',strict:true,
+  style:{color:'#7a2418',weight:3},name:()=>'Appalachian Trail',sub2:()=>'National scenic trail',
+  rows:p=>[['Maintaining club',p.TRAIL_CLUB]]},
+ {group:'Trails',id:'rail',label:'Rail trails',sub:'97 converted rail corridors',
+  src:'DCNR/MapServer/4',fields:'NAME01,COUNTY,STATUS,FROM_,TO_,DESCRIPTIO,ADA_ACCESS,MGMT,MGMT_CITY,MGMT_WEBSI,MGMT_CONTA,MGMT_CON_1,HIKING,BIKING,EQUESTRIAN,CROSS_COUN,INTERPRETI,ATV,SNOWMOBILE,OFF_ROAD_M,FOUR_WHEEL',simplify:0.0004,kind:'line',
+  style:{color:'#b8452c',weight:2.6,dashArray:'8 4'},
+  name:p=>p.NAME01||'Rail trail',sub2:()=>'Rail trail',
+  rows:p=>[['County',val(p.COUNTY)],['Status',val(p.STATUS)],['From',val(p.FROM_)],['To',val(p.TO_)],
+    ['Managed by',val(p.MGMT)],['Contact',[val(p.MGMT_CONTA),val(p.MGMT_CON_1)].filter(Boolean).join(' · ')||null]],
+  text:p=>val(p.DESCRIPTIO),
+  chips:p=>{const c=permits(p,{HIKING:'Hiking',BIKING:'Biking',EQUESTRIAN:'Equestrian',
+    CROSS_COUN:'Cross-country skiing',INTERPRETI:'Interpretive',ATV:'ATV',
+    SNOWMOBILE:'Snowmobile',OFF_ROAD_M:'Off-road motorcycle',FOUR_WHEEL:'Four-wheel drive'});
+    if(yes(p.ADA_ACCESS)) c.push('ADA accessible'); return c;},
+  links:p=>[['Trail manager',url(p.MGMT_WEBSI)]]},
+ {group:'Water',id:'trout',label:'Stocked trout waters',sub:'1,061 stocked stream reaches',
+  src:'PAFishBoat/MapServer/3',fields:'GNIS_Name,County,Length_MI_,Limits',simplify:0.0006,kind:'line',
+  style:{color:'#2f6d8f',weight:1.8},
+  name:p=>p.GNIS_Name||'Stocked reach',sub2:()=>'Stocked trout water',
+  rows:p=>[['County',p.County],['Length',p.Length_MI_?Number(p.Length_MI_).toFixed(1)+' mi':'—'],['Limits',p.Limits]]},
+ {group:'Water',id:'boat',label:'Boat &amp; river access',sub:'1,152 Fish &amp; Boat access points',
+  src:'PAFishBoat/MapServer/0',fields:'ACC_NAME,WATERBODY,COUNTY,MUNICPAL,OWNER',kind:'point',
+  glyph:'anchor',size:16,style:{color:'#1f5878'},
+  name:p=>p.ACC_NAME||'Access point',sub2:p=>p.WATERBODY||'Water access',
+  rows:p=>[['Water',p.WATERBODY],['County',p.COUNTY],['Township',p.MUNICPAL],['Owner',p.OWNER]]},
+ {group:'Curiosities',id:'bridges',label:'Covered bridges',sub:'72 named in the GNIS gazetteer',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_NAME LIKE '%Covered Bridge%'",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS',kind:'point',
+  glyph:'bridge',size:19,style:{color:'#8a4b12'},
+  name:p=>clean(p.FEATURE_NAME),sub2:()=>'Covered bridge',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Feature class',val(p.FEATURE_CLASS)]]},
+ {group:'Curiosities',id:'towers',label:'Fire towers &amp; lookouts',sub:'Standing and historical, from GNIS',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND (FEATURE_NAME LIKE '%Fire Tower%' OR FEATURE_NAME LIKE '%Firetower%' OR FEATURE_NAME LIKE '%Lookout Tower%')",
+  fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT',kind:'point',
+  glyph:'tower',size:19,style:{color:'#c07d16'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>/historical/i.test(p.FEATURE_NAME||'')?'Fire tower (historical)':'Fire tower',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null]]},
+
+ {group:'Protected land',id:'fdist',label:'Forest districts',sub:'20 Bureau of Forestry districts',
+  src:'DCNR/MapServer/15',fields:'DistrictNu,DistrictNa,Acreage',simplify:0.002,kind:'poly',
+  style:{color:'#24593c',weight:2.2,dashArray:'11 5',fill:false},
+  name:p=>(p.DistrictNa||'Forest')+' District',sub2:()=>'Forest district',
+  rows:p=>[['District no.',p.DistrictNu],['Acres',acres(p.Acreage)]]},
+ {group:'Protected land',id:'wilds',label:'PA Wilds region',sub:'The northern-tier recreation region',
+  src:'DCNR/MapServer/14',fields:'PAWILDS_RE,ACRES',simplify:0.002,kind:'poly',
+  style:{color:'#3f6b2f',weight:2.6,dashArray:'12 6',fill:false},
+  name:p=>p.PAWILDS_RE||'PA Wilds',sub2:()=>'Recreation region',rows:p=>[['Acres',acres(p.ACRES)]]},
+ {group:'Protected land',id:'local',label:'Local parks',sub:'6,325 municipal parks',
+  src:'DCNR/MapServer/18',fields:'PARK_NAME,PARK_TYPE,STATUS,PARK_FEE,PREMISE_AD,PREMISE_CI,PREMISE_MU,PREMISE_CO,YEAR_OPEN,URL,Acres,COMMENTS,Basketball,Bicycling,Camping,Canoeing_K,CrossCount,Disc_Golf,Dog_Park,Equestrian,Fishing,Fitness_Eq,Golf,Hiking,Hunting,Ice_Skatin,Mountain_B,Parking,Pavilion,Pets_Allow,Playground,Restrooms,Rock_Climb,Scenic_Vie,Sledding,Sports_Fie,Swimming,Tennis_Cou,Trails,Visitor_Ce,Wildlife_W',simplify:0.0002,
+  kind:'poly',dynamic:10,
+  style:{color:'#4f8f5c',weight:1.3,fillColor:'#8fc79b',fillOpacity:.5},
+  name:p=>p.PARK_NAME||'Local park',sub2:p=>val(p.PARK_TYPE)||'Local park',
+  rows:p=>[['Municipality',val(p.PREMISE_MU)],['County',val(p.PREMISE_CO)],
+    ['Address',[val(p.PREMISE_AD),val(p.PREMISE_CI)].filter(Boolean).join(', ')||null],
+    ['Acres',p.Acres?acres(p.Acres):null],['Opened',val(p.YEAR_OPEN)],
+    ['Status',val(p.STATUS)],['Fee',val(p.PARK_FEE)]],
+  text:p=>val(p.COMMENTS),
+  chips:p=>permits(p,{Playground:'Playground',Restrooms:'Restrooms',Parking:'Parking',
+    Pavilion:'Pavilion',Trails:'Trails',Hiking:'Hiking',Bicycling:'Bicycling',
+    Mountain_B:'Mountain biking',Sports_Fie:'Sports fields',Basketball:'Basketball',
+    Tennis_Cou:'Tennis',Disc_Golf:'Disc golf',Golf:'Golf',Swimming:'Swimming',
+    Fishing:'Fishing',Canoeing_K:'Canoe & kayak',Camping:'Camping',Hunting:'Hunting',
+    Equestrian:'Equestrian',Dog_Park:'Dog park',Pets_Allow:'Pets allowed',
+    Sledding:'Sledding',Ice_Skatin:'Ice skating',CrossCount:'Cross-country skiing',
+    Rock_Climb:'Rock climbing',Scenic_Vie:'Scenic view',Wildlife_W:'Wildlife watching',
+    Fitness_Eq:'Fitness equipment',Visitor_Ce:'Visitor center'}),
+  links:p=>[['Park website',url(p.URL)]]},
+ {group:'Protected land',id:'conserved',label:'Conserved land',sub:'Federal, state, local &amp; private holdings',
+  srcs:['WeConservePA/MapServer/2','WeConservePA/MapServer/5','WeConservePA/MapServer/3','WeConservePA/MapServer/4'],
+  fields:'*',simplify:0.0002,kind:'poly',dynamic:10,
+  style:{color:'#2d6b58',weight:1.2,fillColor:'#6db69c',fillOpacity:.34},
+  name:p=>p.sitename||'Conserved land',sub2:p=>p.own_type||p.Category||'Conserved land',
+  rows:p=>[['Owner',p.loc_own],['Owner type',p.own_type],['Acres',acres(p.acres_gis)],
+    ['County',p.county],['Public access',p.pub_access]]},
+ {group:'Protected land',id:'easements',label:'Conservation &amp; farm easements',sub:'11,575 eased parcels',
+  srcs:['WeConservePA/MapServer/0','WeConservePA/MapServer/1'],fields:'*',simplify:0.0002,
+  kind:'poly',dynamic:10,
+  style:{color:'#7a9448',weight:1.2,dashArray:'3 2',fillColor:'#c3d492',fillOpacity:.42},
+  name:p=>p.sitename||p.esmthldr||'Easement',sub2:p=>p.Eval_Cat||'Easement',
+  rows:p=>[['Holder',p.esmthldr],['Purpose',p.purpose],['Acres',acres(p.acres_gis)],['County',p.county]]},
+
+ {group:'Trails',id:'landtrails',label:'Statewide land trails',sub:'684 trail segments, 2023 inventory',
+  src:'DCNR/MapServer/5',fields:'NAME01,FROM_,TO_,ADA_ACCESS,DESCRIPTIO,MILES,ACCOLADE,WATER_TRAI,RAILINE',simplify:0.0004,kind:'line',
+  style:{color:'#d1663c',weight:2.2},
+  name:p=>p.NAME01||'Trail',sub2:p=>yes(p.WATER_TRAI)?'Water trail':yes(p.RAILINE)?'Rail trail':'Land trail',
+  rows:p=>[['Length',miles(p.MILES)],['From',val(p.FROM_)],['To',val(p.TO_)],
+    ['Recognition',val(p.ACCOLADE)]],
+  text:p=>val(p.DESCRIPTIO),
+  chips:p=>{const c=[];if(yes(p.ADA_ACCESS))c.push('ADA accessible');
+    if(yes(p.WATER_TRAI))c.push('Water trail');if(yes(p.RAILINE))c.push('Former rail line');return c;}},
+ {group:'Trails',id:'bike',label:'PA Bike Routes',sub:'5,549 signed route segments',
+  src:'PennDOT/MapServer/28',fields:'BICYCLE_PA,BK_RT_DESC,US_BIKE_RO,ST_RT_NO,STREET_NAM,MUNICIPALI,COUNTY_NAM,CUR_AADT,TOTAL_WIDT,LANE_CNT,YR_RESURF,TRAIL_NAME,TRAIL_OWNE,TRAIL_SURF',simplify:0.0004,kind:'line',
+  style:{color:'#e08a3c',weight:2.2,dashArray:'5 3'},
+  name:p=>val(p.TRAIL_NAME)||(val(p.BICYCLE_PA)?'BicyclePA Route '+p.BICYCLE_PA:null)
+    ||val(p.STREET_NAM)||'Bike route',
+  sub2:p=>val(p.TRAIL_NAME)?'Bike path':'Signed on-road route',
+  rows:p=>[['On',val(p.STREET_NAM)],['State route',val(p.ST_RT_NO)],['US bike route',val(p.US_BIKE_RO)],
+    ['Municipality',val(p.MUNICIPALI)],['County',val(p.COUNTY_NAM)],
+    ['Daily traffic',p.CUR_AADT>0?fmt(p.CUR_AADT)+' vehicles':null],
+    ['Roadway',p.TOTAL_WIDT>0?p.TOTAL_WIDT+' ft, '+p.LANE_CNT+' lanes':null],
+    ['Last resurfaced',p.YR_RESURF>0?p.YR_RESURF:null],
+    ['Path surface',val(p.TRAIL_SURF)],['Path owner',val(p.TRAIL_OWNE)]],
+  text:p=>val(p.BK_RT_DESC)},
+ {group:'Trails',id:'snow',label:'Snowmobile trails',sub:'38 designated corridors',
+  src:'DCNR/MapServer/3',fields:'NAME01,COUNTY,STATUS,FROM_,TO_',simplify:0.0004,kind:'line',
+  style:{color:'#8a7f9c',weight:2.2,dashArray:'1 4'},
+  name:p=>p.NAME01||'Snowmobile trail',sub2:()=>'Snowmobile trail',
+  rows:p=>[['County',p.COUNTY],['From',p.FROM_],['To',p.TO_],['Status',p.STATUS]]},
+ {group:'Trails',id:'shelters',label:'A.T. shelters',sub:'National Park Service shelter points',
+  src:'NationalParkService/MapServer/0',fields:'*',kind:'point',strict:true,
+  glyph:'tent',size:18,style:{color:'#7a2418'},
+  name:p=>p.NAME||p.Name||p.SHELTER||'Shelter',sub2:()=>'Appalachian Trail shelter',
+  rows:p=>[['County',p.COUNTY||p.County]]},
+
+ {group:'Boundaries',id:'muni',label:'Municipalities',sub:'2,567 townships, boroughs &amp; cities',
+  src:'PennDOT/MapServer/10',fields:'*',simplify:0.0004,kind:'poly',
+  style:{color:'#7a5b74',weight:.8,fill:false},
+  name:p=>p.MUNICIPAL_||'Municipality',sub2:p=>p.MUNICIPAL1||'Municipality',
+  rows:p=>[['County',p.COUNTY],['Class',p.CLASS_OF_M],['Population',p.FIPS_MUN_P?fmt(p.FIPS_MUN_P):null],
+    ['Area',p.FIPS_SQ_MI?Number(p.FIPS_SQ_MI).toFixed(1)+' sq mi':null]]},
+ {group:'Boundaries',id:'school',label:'School districts',sub:'500 districts',
+  src:'PennDOT/MapServer/11',fields:'SCHOOL_DIS,CTY_NAME,IU_NAME',simplify:0.0008,kind:'poly',
+  style:{color:'#8f4e86',weight:1.2,dashArray:'6 3',fill:false},
+  name:p=>p.SCHOOL_DIS||'School district',sub2:()=>'School district',
+  rows:p=>[['County',p.CTY_NAME],['Intermediate unit',p.IU_NAME]]},
+ {group:'Boundaries',id:'house',label:'State House districts',sub:'203 districts, with sitting member',
+  src:'PennDOT/MapServer/9',fields:'*',simplify:0.0008,kind:'poly',
+  style:{color:'#5f3a72',weight:1.4,fill:false},
+  name:p=>'House District '+(p.LEG_DISTRI||''),sub2:()=>'State House district',
+  rows:p=>[['Member',[p.H_FIRSTNAM,p.H_LASTNAME].filter(Boolean).join(' ')],['Party',p.PARTY],
+    ['Home county',p.HOME_COUNT]]},
+ {group:'Boundaries',id:'senate',label:'State Senate districts',sub:'50 districts',
+  src:'PennDOT/MapServer/12',fields:'*',simplify:0.0008,kind:'poly',
+  style:{color:'#3d2a5c',weight:1.6,dashArray:'8 4',fill:false},
+  name:p=>'Senate District '+(p.LEG_DISTRI||p.SEN_DISTRI||''),sub2:()=>'State Senate district',
+  rows:p=>[['Member',[p.S_FIRSTNAM,p.S_LASTNAME].filter(Boolean).join(' ')],['Party',p.PARTY],
+    ['Home county',p.HOME_COUNT]]},
+
+ {group:'Survey &amp; industry',id:'monuments',label:'NGS survey monuments',sub:'16,198 benchmarks',
+  src:'NGS_PA_Monumentation/MapServer/0',fields:'*',kind:'point',dynamic:11,
+  glyph:'monument',size:17,style:{color:'#1f1f1f'},
+  name:p=>p.NAME||p.PID||'Monument',sub2:()=>'NGS survey monument',
+  rows:p=>[['PID',p.PID],['County',p.COUNTY],['Quad',p.QUAD],['Datum date',p.DATA_DATE]]},
+ {group:'Survey &amp; industry',id:'wells',label:'Historic oil &amp; gas wells',sub:'30,527 WPA-mapped wells',
+  src:'PADEP_HistoricOilGasWells/MapServer/0',fields:'TYPE,MAPNAME,COUNTY_NAM,MUNICIPALI,COMMENT',
+  kind:'point',dynamic:11,glyph:'well',size:15,style:{color:'#4a4a4a'},
+  name:p=>p.TYPE||'Historic well',sub2:()=>'Historic oil or gas well',
+  rows:p=>[['County',p.COUNTY_NAM],['Municipality',p.MUNICIPALI],['WPA sheet',p.MAPNAME]],
+  text:p=>p.COMMENT},
+ {group:'Places &amp; names',id:'places',label:'Populated places',sub:'10,705 towns, villages &amp; hamlets',
+  src:'GNIS/MapServer/2',where:"STATE_ALPH='PA'",fields:'FEATURE_NA,COUNTY_NAM,FEATURE_CL,ELEVATION,MAP_NAME,FEATURE_ID',
+  kind:'point',dynamic:11,glyph:'place',size:15,style:{color:'#5c5750'},
+  name:p=>clean(p.FEATURE_NA),sub2:p=>val(p.FEATURE_CL)||'Populated place',
+  rows:p=>[['County',val(p.COUNTY_NAM)],
+    ['Elevation',p.ELEVATION>0?fmt(p.ELEVATION)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)],['GNIS ID',val(p.FEATURE_ID)]]},
+
+ {group:'Natural landmarks',id:'summits',label:'Summits &amp; ridges',sub:'2,257 named, with elevations',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Summit','Range','Ridge','Pillar','Arch','Cliff','Gap')",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:8,
+  glyph:'summit',size:15,style:{color:'#1f4d2e'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>val(p.FEATURE_CLASS)||'Summit',
+  rows:p=>[['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],['County',val(p.COUNTY_NAME)],
+    ['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Natural landmarks',id:'falls',label:'Waterfalls &amp; springs',sub:'303 falls, rapids &amp; springs',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Falls','Rapids','Spring')",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME',kind:'point',
+  glyph:'falls',size:15,style:{color:'#0d5f80'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>val(p.FEATURE_CLASS)||'Falls',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Natural landmarks',id:'dams',label:'Dams &amp; reservoirs',sub:'2,888 named impoundments',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Dam','Reservoir')",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:10,
+  glyph:'dam',size:15,style:{color:'#26647a'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>val(p.FEATURE_CLASS)||'Dam',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)]]},
+
+ {group:'Natural landmarks',id:'highpoints',label:'County high points',
+  sub:'Highest named summit in each county',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Summit' AND ELEV_IN_FT>0",
+  fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',
+  glyph:'summit',size:20,style:{color:'#7a2418'},
+  /* GNIS names summits, not high points — the true topographic maximum of a county
+     is often an unnamed spot on a ridge. This is the highest NAMED summit. */
+  derive:fs=>{const best={};
+    fs.forEach(f=>{const c=f.properties.COUNTY_NAME;if(!c)return;
+      if(!best[c]||f.properties.ELEV_IN_FT>best[c].properties.ELEV_IN_FT)best[c]=f});
+    return Object.values(best).sort((a,b)=>b.properties.ELEV_IN_FT-a.properties.ELEV_IN_FT)
+      .map((f,i)=>{f.properties._rank=i+1;f.properties._of=Object.keys(best).length;return f});},
+  name:p=>clean(p.FEATURE_NAME),
+  sub2:p=>'Highest named summit in '+(p.COUNTY_NAME||'the county')+' County',
+  rows:p=>[['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['Rank',p._rank+' of '+p._of+' counties'],['USGS quad',val(p.MAP_NAME)]],
+  text:()=>'The highest summit the USGS gazetteer names in this county. A county\u2019s true '
+    +'topographic high point is often an unnamed rise on a ridge, so treat this as the highest '
+    +'place with a name on it rather than the highest ground.'},
+
+ {group:'Abandoned mine lands',id:'coal',label:'Coal mining operations',sub:'13,951 permitted sites',
+  src:'DEP/MapServer/6',fields:'SITE_NAME,ORGANIZATI,PRIMARY__3,SUB_FACI_2,SITE_STATU,OTHER_FACI,COMPLIANCE',
+  kind:'point',dynamic:10,glyph:'mine',size:15,style:{color:'#4a2c17'},
+  name:p=>val(p.SITE_NAME)||'Coal mining operation',
+  sub2:p=>val(p.PRIMARY__3)?p.PRIMARY__3.toLowerCase().replace(/^./,c=>c.toUpperCase())+' coal mine':'Coal mining operation',
+  rows:p=>[['Operator',val(p.ORGANIZATI)],['Permit type',val(p.SUB_FACI_2)],
+    ['Status',val(p.SITE_STATU)],['In compliance',val(p.COMPLIANCE)],['Permit no.',val(p.OTHER_FACI)]]},
+
+ {group:'Water',id:'histstreams',label:'Historic stream network',sub:'124,183 mapped reaches, 2004 survey',
+  src:'DEP/MapServer/14',fields:'NAME,SHED,STRAHLER,NAMED',simplify:0.0002,kind:'line',dynamic:11,
+  style:{color:'#4d8fb0',weight:1.1},
+  name:p=>val(p.NAME)||'Unnamed tributary',
+  sub2:p=>p.NAMED?'Named stream':'Unnamed tributary',
+  rows:p=>[['Watershed',val(p.SHED)],['Strahler order',p.STRAHLER>0?p.STRAHLER:null]]},
+
+ {group:'Boundaries',id:'unpaved',label:'Unpaved roads',sub:'19,853 dirt &amp; gravel segments',
+  src:'DEP/MapServer/33',fields:'COUNTY,LENGTH',simplify:0.0002,kind:'line',dynamic:11,
+  style:{color:'#8a6a45',weight:1.6,dashArray:'2 3'},
+  name:p=>'Unpaved road',sub2:p=>(val(p.COUNTY)||'')+' County',
+  rows:p=>[['County',val(p.COUNTY)],['Segment length',p.LENGTH>0?fmt(Math.round(p.LENGTH))+' ft':null]]},
+
+ {group:'Hazards',id:'ej',label:'Environmental justice areas',sub:'1,965 DEP-designated block groups, 2023',
+  src:'DEP/MapServer/12',where:"UPPER(EJAREA)='YES'",
+  fields:'EJAREA,COUNTY,GEOID,FINALSCO_1,POVERTY,RACE,POPCHARSSC,POLLUTIO_1,ABANDONE_1,COALMINI_1,FLOODRISKP,ASTHMAPCTI',
+  simplify:0.0002,kind:'poly',dynamic:9,
+  /* Census coverage is wall-to-wall, so this fill sits far lighter than the
+     sparse-geometry layers or it sheets over the whole map. */
+  style:{color:'#8a1c5c',weight:1,fillColor:'#c96aa0',fillOpacity:.14},
+  name:p=>'Block group '+(val(p.GEOID)||''),
+  sub2:()=>'DEP environmental justice area',
+  rows:p=>[['Combined percentile',ord(p.FINALSCO_1)],
+    ['Population characteristics',pctile(p.POPCHARSSC)],
+    ['Pollution burden',pctile(p.POLLUTIO_1)],
+    ['Below poverty',p.POVERTY>0?Math.round(p.POVERTY)+'%':null],
+    ['People of color',p.RACE>0?Math.round(p.RACE)+'%':null],
+    ['Abandoned mine burden',pctile(p.ABANDONE_1)],
+    ['Coal mining burden',pctile(p.COALMINI_1)],
+    ['Flood risk',pctile(p.FLOODRISKP)],
+    ['Asthma rate',pctile(p.ASTHMAPCTI)]]},
+
+ {group:'Places &amp; names',id:'gone',label:'Places that are gone',
+  sub:'Everything the gazetteer records as no longer there',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_NAME LIKE '%(historical)%'",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME,DATE_CREATED,DATE_EDITED',kind:'point',
+  glyph:'ruin',size:16,style:{color:'#8c1c13'},
+  name:p=>clean(p.FEATURE_NAME),
+  sub2:p=>(val(p.FEATURE_CLASS)||'Feature')+' · no longer there',
+  rows:p=>[['Type',val(p.FEATURE_CLASS)],['County',val(p.COUNTY_NAME)],
+    ['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)],
+    ['Name logged',ymd(p.DATE_CREATED)],['Record last edited',ymd(p.DATE_EDITED)]],
+  links:p=>[['Search ExplorePAhistory','https://explorepahistory.com/keyword.php?keyWord='
+      +encodeURIComponent(clean(p.FEATURE_NAME))],
+    ['Historical topo maps',p._lat?'https://ngmdb.usgs.gov/topoview/viewer/#13/'
+      +p._lat.toFixed(4)+'/'+p._lon.toFixed(4):null]],
+  text:()=>'The gazetteer keeps the name but records the feature itself as gone. It carries no '
+    +'account of what happened — only the name, where it stood, and when the USGS logged it. '
+    +'The quad sheet below is the map it was drawn on.'},
+
+ {group:'Places &amp; names',id:'postoffices',label:'Post offices',sub:'1,648 named · 370 recorded closed',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Post Office'",
+  fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:8,
+  glyph:'mail',size:14,style:{color:'#7a3d6b'},
+  name:p=>clean(p.FEATURE_NAME),
+  sub2:p=>gone(p)?'Post office · no longer there':'Post office',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Places &amp; names',id:'locales',label:'Locales',sub:'4,764 named spots that are not towns · 170 gone',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Locale'",
+  fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:10,
+  glyph:'ruin',size:14,style:{color:'#6b4a2f'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>gone(p)?'Locale · no longer there':'Locale',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Places &amp; names',id:'sacred',label:'Churches &amp; cemeteries',sub:'8,187 named · 71 recorded gone',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Church','Cemetery')",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,MAP_NAME',kind:'point',dynamic:11,
+  glyph:'cross',size:14,style:{color:'#5c4a7a'},
+  name:p=>clean(p.FEATURE_NAME),
+  sub2:p=>(val(p.FEATURE_CLASS)||'Church')+(gone(p)?' · no longer there':''),
+  rows:p=>[['County',val(p.COUNTY_NAME)],['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Places &amp; names',id:'gnismines',label:'Named mines &amp; tunnels',sub:'295 named · 45 recorded gone',
+  src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Mine','Tunnel','Oilfield')",
+  fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME',kind:'point',
+  glyph:'mine',size:15,style:{color:'#1f1f1f'},
+  name:p=>clean(p.FEATURE_NAME),sub2:p=>val(p.FEATURE_CLASS)||'Mine',
+  rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
+    ['USGS quad',val(p.MAP_NAME)]]},
+
+ {group:'Abandoned mine lands',id:'amlSites',label:'AML problem areas',sub:'22,350 mapped boundaries',
+  src:'DEP/MapServer/1',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
+  simplify:0.00008,kind:'poly',dynamic:11,
+  style:{color:'#8c1c13',weight:1.2,fillColor:'#d4746b',fillOpacity:.42},
+  name:p=>val(p.sf_name)||val(p.other_id)||'AML problem area',sub2:p=>val(p.sf_type)||'Abandoned mine land',
+  rows:p=>[['Problem',val(p.sf_probl_1)],['Status',val(p.sf_status)],['Priority',val(p.sf_prior_1)],
+    ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
+    ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
+    ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
+ {group:'Abandoned mine lands',id:'amlPoints',label:'AML inventory points',sub:'13,003 hazards &amp; discharges',
+  src:'DEP/MapServer/0',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
+  kind:'point',dynamic:11,glyph:'hazard',size:15,style:{color:'#8c1c13'},
+  name:p=>val(p.sf_name)||val(p.other_id)||'AML feature',sub2:p=>val(p.sf_type)||'Abandoned mine land',
+  rows:p=>[['Problem',val(p.sf_probl_1)],['Status',val(p.sf_status)],['Priority',val(p.sf_prior_1)],
+    ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
+    ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
+    ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
+ {group:'Abandoned mine lands',id:'reclaim',label:'Mine drainage &amp; reclamation projects',sub:'233 treatment sites',
+  src:'DEP/MapServer/19',fields:'SITE_NAME,ORGANIZATI,SUB_FACI_2,SITE_STATU,PRIMARY__3,OTHER_FACI',
+  kind:'point',glyph:'droplet',size:15,style:{color:'#0f6b52'},
+  name:p=>val(p.SITE_NAME)||'Reclamation project',sub2:p=>val(p.SUB_FACI_2)||'Reclamation project',
+  rows:p=>[['Operator',val(p.ORGANIZATI)],['Status',val(p.SITE_STATU)],
+    ['Funding',val(p.PRIMARY__3)&&!/unavailable/i.test(p.PRIMARY__3)?p.PRIMARY__3:null],
+    ['Project id',val(p.OTHER_FACI)]]},
+
+ {group:'Hazards',id:'flood',label:'FEMA flood hazard',sub:'National Flood Hazard Layer · from zoom 9',
+  src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}}
+];
+
+const BASE_DEFS=[
+  {id:'counties',label:'County boundaries',sub:'67 counties, U.S. Census geometry',
+   swatch:'<rect x="1" y="4" width="16" height="10" fill="none" stroke="#201f1d" stroke-opacity=".5"/>'},
+  {id:'labels',label:'County names',sub:'Shown from zoom 7 outward',
+   swatch:'<text x="9" y="12" font-size="9" text-anchor="middle" fill="#201f1d" fill-opacity=".65" font-family="Cormorant Garamond">Aa</text>'},
+  {id:'markers',label:'Historical markers',sub:'2,585 PHMC markers with coordinates',
+   swatch:'<circle cx="9" cy="9" r="3.4" fill="#a06f24"/>'},
+  {id:'peaks',label:'State high &amp; low points',sub:'Mount Davis, Herman Point, the Delaware',
+   swatch:'<path d="M9 4 L15 14 L3 14 Z" fill="#201f1d"/>'}
+];
+
+const state={markers:[],feats:[],byCounty:{},filtered:[],sel:null,
+  layers:{counties:true,labels:true,markers:false,peaks:false},
+  on:{},loaded:{},busy:{},decade:0,gaz:{q:'',rows:[]}};
+
+const map=L.map('map',{preferCanvas:true,minZoom:6,maxZoom:18,zoomSnap:.5});
+map.setView([40.9,-77.7],7.5);
+const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
+  attribution:'© OpenStreetMap contributors · Markers: PHMC · Layers: PASDA / Penn State · Boundaries: U.S. Census'});
+/* Esri's global hillshade, drawn under the road tiles so terrain reads as relief
+   beneath the streets rather than replacing them. */
+const hill=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:16,maxNativeZoom:16,attribution:'Hillshade: Esri, USGS'});
+tiles.addTo(map);
+function setBase(name){
+  const mapEl=document.getElementById('map');
+  mapEl.classList.toggle('roads',name!=='paper');
+  mapEl.classList.toggle('terrain',name==='terrain');
+  if(name==='terrain'){ if(!map.hasLayer(hill)) hill.addTo(map); }
+  else if(map.hasLayer(hill)) map.removeLayer(hill);
+  if(name==='paper'){ if(map.hasLayer(tiles)) map.removeLayer(tiles); }
+  else if(!map.hasLayer(tiles)) tiles.addTo(map);
+  tiles.setOpacity(name==='terrain'?.5:1);
+  if(state.feats.length) countyLayer.setStyle(countyStyle);
+  writeHash();
+}
+[['pRaster',405],['pVec',420],['pIcon',445],['pPeak',450],['pLab',460]]
+  .forEach(([n,z])=>{map.createPane(n).style.zIndex=z});
+map.getPane('pLab').style.pointerEvents='none';
+/* One shared canvas for every vector layer: separate canvas panes stack, and the
+   topmost one swallows clicks meant for the layers beneath it. */
+const REN=L.canvas({pane:'pVec'});
+
+const countyLayer=L.geoJSON(null,{pane:'pVec',renderer:REN,style:countyStyle,
+  onEachFeature:(f,l)=>{
+    l.on('mouseover',()=>l.setStyle({weight:2.2,color:ACCENT}))
+     .on('mouseout',()=>l.setStyle(countyStyle(f)))
+     .on('click',()=>{document.getElementById('county').value=f.properties.name;
+        applyFilters();map.fitBounds(l.getBounds(),{padding:[24,24]});})
+     .bindTooltip(()=>`${f.properties.name} County · ${fmt(state.byCounty[f.properties.name]||0)} markers`,{sticky:true});
+  }});
+const mkLayer=L.layerGroup([],{pane:'pVec'}), labLayer=L.layerGroup([],{pane:'pLab'}),
+      peakLayer=L.layerGroup([],{pane:'pPeak'});
+let mkRefs=[];
+
+/* ── PASDA fetch ─────────────────────────────────────────── */
+const PA_BOX=[-80.9,39.5,-74.4,42.6];
+function inPA(g){ // true if any coordinate of the geometry lands inside the state's envelope
+  let hit=false;
+  const walk=c=>{ if(hit)return;
+    if(typeof c[0]==='number'){
+      const [x,y]=c;
+      if(x===0&&y===0) return;
+      if(x>=PA_BOX[0]&&x<=PA_BOX[2]&&y>=PA_BOX[1]&&y<=PA_BOX[3]) hit=true;
+    } else c.forEach(walk);
+  };
+  if(!g||!g.coordinates) return false;
+  walk(g.coordinates);
+  return hit;
+}
+/* Two of the services are multi-state, so a bounding box isn't enough — test
+   against the real county polygons the page already loaded. */
+let PA_RINGS=null;
+function buildRings(){
+  PA_RINGS=[];
+  state.feats.forEach(f=>{
+    const g=f.geometry;
+    const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+    polys.forEach(poly=>{
+      const ring=poly[0];
+      let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+      ring.forEach(([x,y])=>{if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y});
+      PA_RINGS.push({ring,minx,miny,maxx,maxy});
+    });
+  });
+}
+function pipPA(x,y){
+  for(const r of PA_RINGS){
+    if(x<r.minx||x>r.maxx||y<r.miny||y>r.maxy) continue;
+    const rg=r.ring; let inside=false;
+    for(let i=0,j=rg.length-1;i<rg.length;j=i++){
+      const xi=rg[i][0],yi=rg[i][1],xj=rg[j][0],yj=rg[j][1];
+      if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    if(inside) return true;
+  }
+  return false;
+}
+function inPAStrict(g){
+  if(!g||!g.coordinates||!PA_RINGS) return false;
+  let hit=false;
+  const walk=c=>{ if(hit)return;
+    if(typeof c[0]==='number'){ if(c[0]===0&&c[1]===0)return; if(pipPA(c[0],c[1])) hit=true; }
+    else c.forEach(walk);
+  };
+  walk(g.coordinates);
+  return hit;
+}
+
+async function fetchOne(d,src,box){
+  const test=d.strict?inPAStrict:inPA;
+  const out=[];
+  const env='&geometry='+box.join(',')+'&geometryType=esriGeometryEnvelope&inSR=4326'
+    +'&spatialRel=esriSpatialRelIntersects';
+  /* A viewport fetch stops at 6,000 features; say so rather than let a capped
+     number read as the complete count. */
+  const cap=d.dynamic?6000:12000;
+  let capped=false;
+  for(let off=0;off<cap;off+=1000){
+    const u=PASDA+src+'/query?where='+encodeURIComponent(d.where||'1=1')
+      +'&outFields='+encodeURIComponent(d.fields)+'&returnGeometry=true&outSR=4326&f=geojson'+env
+      +(d.simplify?'&maxAllowableOffset='+d.simplify:'')
+      +'&resultOffset='+off+'&resultRecordCount=1000';
+    const r=await fetch(u);
+    if(!r.ok) throw new Error(d.id+' HTTP '+r.status);
+    const j=await r.json();
+    const raw=(j.features||[]);
+    out.push(...raw.filter(f=>f.geometry&&test(f.geometry)));
+    if(raw.length<1000) break;
+    if(off+1000>=cap) capped=true;
+  }
+  out.capped=capped;
+  return out;
+}
+
+async function fetchLayer(d,box){
+  const pane=d.kind==='point'?'pIcon':'pVec';
+  const out=[];
+  let capped=false;
+  for(const src of (d.srcs||[d.src])){
+    const part=await fetchOne(d,src,box||PA_BOX);
+    if(part.capped) capped=true;
+    out.push(...part);
+  }
+  const feats=d.derive?d.derive(out):out;
+  feats.capped=capped;
+  const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
+    pane,renderer:REN,style:()=>d.style,
+    pointToLayer:(f,ll)=>{const chip=Math.round((d.size||16)*1.55);
+      return L.marker(ll,{pane:'pIcon',riseOnHover:true,
+        icon:L.divIcon({className:'gIcon',html:svgIcon(d.glyph,d.style.color,d.size||16),
+          iconSize:[chip,chip],iconAnchor:[chip/2,chip/2]})});},
+    onEachFeature:(f,l)=>{
+      const nm=d.name(f.properties)||d.label.replace(/&amp;/g,'&');
+      if(f.geometry&&f.geometry.type==='Point'){
+        f.properties._lon=f.geometry.coordinates[0];
+        f.properties._lat=f.geometry.coordinates[1];
+      }
+      l.bindTooltip(nm,{sticky:d.kind!=='point',direction:'top'});
+      l.on('click',e=>{L.DomEvent.stop(e);showFeature(d,f.properties,nm,l)});
+    }});
+  layer._capped=capped;
+  return layer;
+}
+
+/* ArcGIS MapServer image export, tiled — the only sane way to draw something as
+   large as the national flood hazard polygons. */
+function rasterLayer(d){
+  const T=L.TileLayer.extend({getTileUrl(coords){
+    const ts=this.getTileSize(), nwP=coords.scaleBy(ts), seP=nwP.add(ts);
+    const nw=this._map.unproject(nwP,coords.z), se=this._map.unproject(seP,coords.z);
+    const a=L.CRS.EPSG3857.project(nw), b=L.CRS.EPSG3857.project(se);
+    return PASDA+d.src+'/export?bbox='+[a.x,b.y,b.x,a.y].join(',')
+      +'&bboxSR=3857&imageSR=3857&size='+ts.x+','+ts.y
+      +'&format=png32&transparent=true&dpi=96&f=image'
+      +(d.layers?'&layers=show:'+d.layers:'');
+  }});
+  return new T('',{pane:'pRaster',opacity:.5,tileSize:512,minZoom:9,maxZoom:19,
+    updateWhenIdle:true,keepBuffer:0,attribution:'FEMA NFHL via PASDA'});
+}
+
+/* Layers too big to hold statewide load only what the viewport covers, and reload
+   as you pan. */
+async function loadDynamic(d,label){
+  if(map.getZoom()<d.dynamic){
+    if(state.loaded[d.id]&&map.hasLayer(state.loaded[d.id])) map.removeLayer(state.loaded[d.id]);
+    label.querySelector('.sub').textContent='Zoom to '+d.dynamic+' to load this area';
+    return;
+  }
+  if(state.busy[d.id]) return;
+  state.busy[d.id]=true;
+  label.classList.add('busy'); label.classList.remove('fail');
+  /* Fetch 40% beyond the viewport so a short pan doesn't blank the layer. */
+  const b=map.getBounds().pad(0.4);
+  try{
+    const layer=await fetchLayer(d,[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()]);
+    if(state.loaded[d.id]&&map.hasLayer(state.loaded[d.id])) map.removeLayer(state.loaded[d.id]);
+    state.loaded[d.id]=layer;
+    if(state.on[d.id]){ layer.addTo(map); reorder(); }
+    label.querySelector('.sub').textContent=layer._capped
+      ? fmt(layer.getLayers().length)+'+ in view — zoom in for the rest'
+      : fmt(layer.getLayers().length)+' in view · PASDA';
+    iconZoom();
+  }catch(err){
+    console.warn('layer failed',d.id,err);
+    label.classList.add('fail');
+    const cb=label.querySelector('input'); cb.checked=false; state.on[d.id]=false;
+  }finally{ state.busy[d.id]=false; label.classList.remove('busy'); }
+}
+
+async function toggleData(d,on,label){
+  state.on[d.id]=on;
+  if(d.kind==='raster'){
+    if(!state.loaded[d.id]) state.loaded[d.id]=rasterLayer(d);
+    if(on) state.loaded[d.id].addTo(map); else map.removeLayer(state.loaded[d.id]);
+    return;
+  }
+  if(!on){ if(state.loaded[d.id]&&map.hasLayer(state.loaded[d.id])) map.removeLayer(state.loaded[d.id]); return; }
+  if(d.dynamic) return loadDynamic(d,label);
+  if(state.loaded[d.id]){ state.loaded[d.id].addTo(map); reorder(); iconZoom(); return; }
+  label.classList.add('busy'); label.classList.remove('fail');
+  try{
+    const layer=await fetchLayer(d);
+    state.loaded[d.id]=layer;
+    if(state.on[d.id]){ layer.addTo(map); reorder(); }
+    const n=layer.getLayers().length;
+    label.querySelector('.sub').textContent=fmt(n)+(layer._capped?'+':'')+' features · PASDA'
+      +(d.kind==='point'&&n>400?' · from zoom 9':'');
+    iconZoom();
+  }catch(err){
+    console.warn('layer failed',d.id,err);
+    label.classList.add('fail');
+    const cb=label.querySelector('input'); cb.checked=false; state.on[d.id]=false;
+  }finally{ label.classList.remove('busy'); }
+}
+
+/* ── county base styling ─────────────────────────────────── */
+/* Glyph icons are DOM, not canvas — scale them with zoom and hold the dense layers
+   back until the map is close enough for them to read as separate marks. */
+function iconZoom(){
+  const z=map.getZoom();
+  document.getElementById('map').style.setProperty('--gs',
+    z<=7.5?.8:z<=9?.9:1);
+  DATA.filter(d=>d.kind==='point'&&!d.dynamic).forEach(d=>{
+    const l=state.loaded[d.id]; if(!l) return;
+    const show=state.on[d.id]&&(l.getLayers().length<=400||z>=9);
+    if(show){ if(!map.hasLayer(l)) l.addTo(map); }
+    else if(map.hasLayer(l)) map.removeLayer(l);
+  });
+}
+
+/* Canvas draw order follows add order, so re-assert it bottom-up after any toggle. */
+function reorder(){
+  const stack=[countyLayer];
+  ['poly','line'].forEach(kind=>DATA.filter(d=>d.kind===kind)
+    .forEach(d=>{const l=state.loaded[d.id]; if(l&&map.hasLayer(l))stack.push(l)}));
+  stack.push(mkLayer);
+  stack.forEach(g=>g.eachLayer(p=>{if(p.bringToFront)p.bringToFront()}));
+}
+
+function countyStyle(f){
+  const L2=state.layers, name=f.properties.name;
+  const sel=document.getElementById('county').value;
+  const roads=document.querySelector('#base input:checked').value!=='paper';
+  let fill='none', op=0;
+  if(!roads){fill='#f8f4f4';op=1;}
+  if(sel&&name===sel){fill=ACCENT;op=.16;}
+  return {color:L2.counties?INK:'transparent',weight:L2.counties?.7:0,opacity:L2.counties?.42:0,
+    fill:op>0,fillColor:fill,fillOpacity:op};
+}
+
+/* ── boot ────────────────────────────────────────────────── */
+async function boot(){
+  const [topo,markers]=await Promise.all([
+    fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/counties-10m.json').then(r=>r.json()),
+    fetch('data/markers.json').then(r=>r.json())
+  ]);
+  const geo=topojson.feature(topo,topo.objects.counties);
+  state.feats=geo.features.filter(f=>String(f.id).startsWith('42'));
+  buildRings();
+  state.markers=markers.filter(m=>m.c);
+  await mergePhmc();
+  state.markers.forEach(m=>state.byCounty[m.c]=(state.byCounty[m.c]||0)+1);
+  countyLayer.addData({type:'FeatureCollection',features:state.feats});
+  /* Always on the map — countyStyle alone decides whether the boundaries are drawn
+     and whether the land is filled, so no other code can strip the state's shape. */
+  countyLayer.addTo(map);
+
+  state.feats.forEach(f=>{
+    const b=L.geoJSON(f).getBounds();
+    labLayer.addLayer(L.marker(b.getCenter(),{pane:'pLab',interactive:false,
+      icon:L.divIcon({className:'clabel',html:'<span>'+f.properties.name+'</span>',iconSize:null})}));
+  });
+
+  mkRefs=state.markers.map(m=>{
+    const c=L.circleMarker([m.lat,m.lon],{pane:'pVec',renderer:REN,radius:3.4,weight:.7,color:PAPER,
+      fillColor:TYPE_COLOR[m.t]||ACCENT,fillOpacity:.95});
+    c.bindTooltip(m.n,{direction:'top'});
+    c.on('click',()=>select(m,false));
+    c._m=m; mkLayer.addLayer(c); return c;
+  });
+
+  LANDMARKS.forEach(d=>{
+    const up=d.kind==='high';
+    const html=`<svg width="16" height="15" viewBox="0 0 16 15" aria-hidden="true">
+      <path d="${up?'M8 1 L15 14 L1 14 Z':'M8 14 L15 1 L1 1 Z'}" fill="${INK}" stroke="${PAPER}" stroke-width="1.2"/></svg>`;
+    const mk=L.marker([d.lat,d.lon],{pane:'pPeak',
+      icon:L.divIcon({className:'peakIcon',html,iconSize:[16,15],iconAnchor:[8,up?14:1]})});
+    mk.bindTooltip(`${d.name} · ${d.elev}`,{direction:'top'});
+    mk.on('click',()=>showLandmark(d));
+    peakLayer.addLayer(mk);
+  });
+
+  const names=[...new Set(state.feats.map(f=>f.properties.name))].sort();
+  document.getElementById('county').insertAdjacentHTML('beforeend',
+    names.map(n=>`<option value="${n}">${n} — ${fmt(state.byCounty[n]||0)}</option>`).join(''));
+  document.getElementById('type').insertAdjacentHTML('beforeend',
+    ['Roadside','City','Plaque'].map(t=>`<option value="${t}">${t}</option>`).join(''));
+
+  buildRail(); buildLegend();
+  document.querySelector('[data-layer=markers]').closest('.layer').querySelector('.sub')
+    .textContent=fmt(state.markers.length)+' markers · uploaded CSV + live PHMC';
+  document.getElementById('loading').remove();
+  syncLayers(); buildTimeline(); applyFilters(); iconZoom();
+  if(!readHash()) map.fitBounds(countyLayer.getBounds(),{padding:[10,10]});
+}
+
+/* The uploaded CSV holds 2,545 plotted markers; the live PHMC service holds 2,394.
+   Neither is a superset, so take the union and key on name + county. */
+async function mergePhmc(){
+  try{
+    const seen=new Set(state.markers.map(m=>(m.n+'|'+m.c).toLowerCase()));
+    const u=PASDA+'PHMC/MapServer/0/query?where=1%3D1&outFields='
+      +encodeURIComponent('Name,County,Location,Dedicated,Marker_Typ,Missing_,Categories,Marker_Tex')
+      +'&returnGeometry=true&outSR=4326&f=geojson&resultRecordCount=3000';
+    const j=await (await fetch(u)).json();
+    let added=0;
+    (j.features||[]).forEach(f=>{
+      const p=f.properties||{}, g=f.geometry;
+      if(!g||g.type!=='Point') return;
+      const [lon,lat]=g.coordinates;
+      if(!inPA(g)) return;
+      const key=((p.Name||'')+'|'+(p.County||'')).toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      const yr=String(p.Dedicated||'').match(/(\d{4})/);
+      state.markers.push({n:(p.Name||'').trim(),c:(p.County||'').trim(),
+        t:(p.Marker_Typ||'Roadside').trim(),y:yr?+yr[1]:null,l:(p.Location||'').trim(),
+        x:(p.Marker_Tex||'').trim(),m:/^(true|yes|y)$/i.test(String(p.Missing_||'')),
+        lat:+lat.toFixed(5),lon:+lon.toFixed(5),id:''});
+      added++;
+    });
+    if(added) console.info('PHMC live service added',added,'markers not in the CSV');
+  }catch(err){ console.warn('PHMC live merge skipped',err); }
+}
+
+function swatchFor(d){
+  if(d.kind==='poly'){
+    const f=d.style.fill===false?'none':d.style.fillColor;
+    return `<rect x="1.5" y="4.5" width="15" height="9" fill="${f}" fill-opacity="${d.style.fillOpacity||0}"
+      stroke="${d.style.color}" stroke-width="${d.style.weight}" stroke-dasharray="${d.style.dashArray||''}"/>`;
+  }
+  if(d.kind==='line') return `<path d="M1 13 C6 3, 12 15, 17 5" fill="none" stroke="${d.style.color}"
+      stroke-width="${d.style.weight}" stroke-dasharray="${d.style.dashArray||''}"/>`;
+  if(d.kind==='raster') return `<rect x="1.5" y="4.5" width="15" height="9" fill="${d.style.color}"
+      fill-opacity=".3" stroke="${d.style.color}" stroke-width="1"/>`;
+  if(d.kind==='point') return svgIcon(d.glyph,d.style.color,15);
+  return `<circle cx="9" cy="9" r="${d.style.radius}" fill="${d.style.fillColor}" fill-opacity="${d.style.fillOpacity}"
+      stroke="${d.style.color}" stroke-width="${d.style.weight}"/>`;
+}
+
+function buildRail(){
+  const el=document.getElementById('layers');
+  const row=(id,label,sub,swatch,checked)=>`<label class="layer">
+      <input type="checkbox" data-layer="${id}" ${checked?'checked':''}>
+      ${swatch.startsWith('<svg')?swatch:`<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">${swatch}</svg>`}
+      <div>${label}<span class="sub">${sub}</span></div></label>`;
+  let html=`<div class="grp"><div class="kicker gold">The base map</div>`
+    +BASE_DEFS.map(l=>row(l.id,l.label,l.sub,l.swatch,state.layers[l.id])).join('')+`</div>`;
+  const groups=[...new Set(DATA.map(d=>d.group))];
+  groups.forEach(g=>{
+    html+=`<div class="grp"><div class="kicker gold">${g}</div>`
+      +DATA.filter(d=>d.group===g).map(d=>row('data:'+d.id,d.label,
+        d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false)).join('')+`</div>`;
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('input').forEach(i=>i.addEventListener('change',e=>{
+    const key=e.target.dataset.layer;
+    if(key.startsWith('data:')){
+      const d=DATA.find(x=>x.id===key.slice(5));
+      toggleData(d,e.target.checked,e.target.closest('.layer'));
+      buildLegend(); writeHash();
+    } else { state.layers[key]=e.target.checked; syncLayers(); }
+  }));
+}
+
+function syncLayers(){
+  const L2=state.layers;
+  toggle(mkLayer,L2.markers);
+  toggle(peakLayer,L2.peaks);
+  toggle(labLayer,L2.labels&&map.getZoom()>=7);
+  countyLayer.setStyle(countyStyle);
+  reorder();
+  buildLegend();
+}
+function toggle(layer,on){ if(on){if(!map.hasLayer(layer))layer.addTo(map);} else if(map.hasLayer(layer))map.removeLayer(layer); }
+
+/* ── marker filtering ────────────────────────────────────── */
+function markerKeep(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const co=document.getElementById('county').value, ty=document.getElementById('type').value;
+  const dec=state.decade;
+  return m=>(!co||m.c===co)&&(!ty||m.t===ty)
+    &&(!dec||(m.y&&m.y>=dec&&m.y<dec+10))
+    &&(!q||m.n.toLowerCase().includes(q)||m.x.toLowerCase().includes(q)||m.l.toLowerCase().includes(q));
+}
+function applyFilters(){
+  const keep=markerKeep();
+  state.filtered=state.markers.filter(keep);
+  document.getElementById('hdrCount').textContent=fmt(state.filtered.length);
+  const z=map.getZoom(), base=z<8?3:z<10?4.2:z<12?5.5:7;
+  mkRefs.forEach(c=>{
+    const on=keep(c._m), act=state.sel===c._m;
+    c.setStyle({fillOpacity:on?.95:.1,opacity:on?(act?1:.7):.06,
+      color:act?INK:PAPER,weight:act?1.8:.7});
+    c.setRadius(act?base+2.6:base);
+    if(act) c.bringToFront();
+  });
+  countyLayer.setStyle(countyStyle);
+  renderResults();
+}
+
+/* ── search across markers, every loaded layer, and the gazetteer ── */
+let searchSeq=0;
+function renderResults(){
+  const box=document.getElementById('results');
+  const q=document.getElementById('q').value.trim();
+  const co=document.getElementById('county').value, ty=document.getElementById('type').value;
+  if(!q&&!co&&!ty&&!state.decade&&!state.sel){
+    box.innerHTML='<div class="rail-pad kicker">Search a name, or pick a county, to list what is here</div>';
+    return;
+  }
+  const ql=q.toLowerCase();
+  const groups=[];
+
+  const mk=state.filtered.slice(0,80);
+  if(mk.length) groups.push({title:'Historical markers',total:state.filtered.length,
+    items:mk.map(m=>({label:m.n,meta:m.c+' County · '+m.t+(m.y?' · '+m.y:''),go:()=>select(m,true),
+      sel:state.sel===m}))});
+
+  /* Loaded layers are already in memory — search them without another request. */
+  if(ql) DATA.forEach(d=>{
+    const L2=state.loaded[d.id];
+    if(!L2||!L2.eachLayer||d.kind==='raster') return;
+    const hits=[];
+    L2.eachLayer(l=>{
+      if(hits.length>=25||!l.feature) return;
+      const p=l.feature.properties||{};
+      let nm=''; try{ nm=d.name(p)||''; }catch(e){}
+      if(nm&&String(nm).toLowerCase().includes(ql))
+        hits.push({label:String(nm),meta:(()=>{try{return d.sub2(p)}catch(e){return d.label}})(),
+          go:()=>{ const b=l.getBounds?l.getBounds():null;
+            if(b) map.fitBounds(b,{padding:[40,40]});
+            else if(l.getLatLng) map.flyTo(l.getLatLng(),14,{duration:.9});
+            showFeature(d,p,String(nm),l); }});
+    });
+    if(hits.length) groups.push({title:d.label.replace(/&amp;/g,'&'),items:hits});
+  });
+
+  if(ql&&state.gaz.q===ql&&state.gaz.rows.length)
+    groups.push({title:'Place names (USGS gazetteer)',items:state.gaz.rows.map(r=>({
+      label:r.n,meta:r.cls+(r.co?' · '+r.co+' County':'')+(r.el>0?' · '+fmt(r.el)+' ft':''),
+      go:()=>{ map.flyTo([r.lat,r.lon],14,{duration:.9});
+        openPanel('<div class="kicker gold">'+esc(r.cls)+'</div><h2>'+esc(r.n)+'</h2>'
+          +'<div class="loc">'+esc(r.co||'')+(r.co?' County':'')+'</div><dl>'
+          +(r.el>0?'<dt>Elevation</dt><dd>'+fmt(r.el)+' ft</dd>':'')
+          +'<dt>Coords</dt><dd>'+r.lat.toFixed(5)+', '+r.lon.toFixed(5)+'</dd>'
+          +(r.quad?'<dt>USGS quad</dt><dd>'+esc(r.quad)+'</dd>':'')+'</dl>'
+          +'<div class="loc" style="margin-top:var(--space-3);font-size:10.5px">Source: PA GNIS 2017 via PASDA</div>'); }
+    }))});
+
+  if(!groups.length){
+    box.innerHTML='<div class="rail-pad" style="font-size:13px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">'
+      +'Nothing matches'+(ql?' “'+esc(q)+'”':'')+'.'
+      +(ql?'<br><span class="kicker">Layers are searched once you switch them on</span>':'')+'</div>';
+    return;
+  }
+
+  const flat=[];
+  box.innerHTML=groups.map(g=>
+    '<div class="grp-head kicker gold">'+esc(g.title)
+      +(g.total&&g.total>g.items.length?' · '+fmt(g.items.length)+' of '+fmt(g.total):'')+'</div>'
+    +g.items.map(it=>{ flat.push(it.go); return '<button class="res'+(it.sel?' sel':'')+'" data-i="'+(flat.length-1)+'">'
+      +'<b>'+esc(it.label)+'</b><span>'+esc(it.meta||'')+'</span></button>'; }).join('')
+  ).join('');
+  box.querySelectorAll('.res').forEach(b=>b.addEventListener('click',()=>flat[+b.dataset.i]()));
+}
+
+/* The gazetteer holds names the map has no layer for, so query it by name directly. */
+async function searchGazetteer(){
+  const q=document.getElementById('q').value.trim();
+  if(q.length<3){ state.gaz={q:'',rows:[]}; return; }
+  const seq=++searchSeq;
+  try{
+    const safe=q.replace(/'/g,"''");
+    const u=PASDA+'GNIS/MapServer/5/query?where='
+      +encodeURIComponent("STATE_ALPHA='PA' AND UPPER(FEATURE_NAME) LIKE UPPER('%"+safe+"%')")
+      +'&outFields=FEATURE_NAME,FEATURE_CLASS,COUNTY_NAME,ELEV_IN_FT,MAP_NAME'
+      +'&returnGeometry=true&outSR=4326&f=geojson&resultRecordCount=25';
+    const j=await (await fetch(u)).json();
+    if(seq!==searchSeq) return;
+    state.gaz={q:q.toLowerCase(),rows:(j.features||[]).filter(f=>f.geometry).map(f=>({
+      n:clean(f.properties.FEATURE_NAME),cls:val(f.properties.FEATURE_CLASS)||'Place',
+      co:val(f.properties.COUNTY_NAME),el:f.properties.ELEV_IN_FT,quad:val(f.properties.MAP_NAME),
+      lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}))};
+    renderResults();
+  }catch(e){ /* the gazetteer is a bonus; local results still stand */ }
+}
+
+/* ── detail panel ────────────────────────────────────────── */
+function openPanel(html){document.getElementById('panelBody').innerHTML=html;
+  document.getElementById('panel').classList.add('open')}
+
+function select(m,fly){
+  state.sel=m;
+  if(!state.layers.markers){ // searching for a marker should show the marker layer
+    state.layers.markers=true;
+    const cb=document.querySelector('[data-layer=markers]');
+    if(cb) cb.checked=true;
+    syncLayers();
+  }
+  openPanel(`
+    <div class="kicker gold">${esc(m.t)} marker${m.y?' · dedicated '+m.y:''}</div>
+    <h2>${esc(m.n)}</h2>
+    <div class="loc">${esc(m.c)} County — ${esc(m.l)||'location not recorded'}</div>
+    <hr class="hr" style="margin:var(--space-3) 0">
+    <p class="body">${esc(m.x)}</p>
+    <dl>
+      <dt>Status</dt><dd>${m.m?'Missing / not currently standing':'Standing'}</dd>
+      <dt>Coords</dt><dd>${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}</dd>
+      <dt>PHMC no.</dt><dd>${esc(m.id||'—')}</dd>
+    </dl>
+    <div style="margin-top:var(--space-3);display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn btn-primary" href="https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lon}" target="_blank" rel="noopener" style="border-bottom:0">Directions</a>
+      <a class="btn btn-secondary" href="https://explorepahistory.com/keyword.php?keyWord=${encodeURIComponent(m.n)}" target="_blank" rel="noopener" style="border-bottom:0">ExplorePAhistory</a>
+      <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?SearchFor=${encodeURIComponent(m.n)}&State=Pennsylvania" target="_blank" rel="noopener" style="border-bottom:0">HMdb</a>
+    </div>`);
+  applyFilters();
+  if(fly) map.flyTo([m.lat,m.lon],15,{duration:.9});
+}
+
+/* The gazetteer records no history, but a PHMC marker standing nearby often does —
+   so offer the closest one rather than leaving the panel with nothing to say. */
+function nearestMarker(ll,maxMi){
+  let best=null,bestD=Infinity;
+  state.markers.forEach(m=>{
+    const dd=ll.distanceTo(L.latLng(m.lat,m.lon));
+    if(dd<bestD){bestD=dd;best=m;}
+  });
+  const mi=bestD/1609.344;
+  return best&&mi<=maxMi?{m:best,mi}:null;
+}
+
+function showFeature(d,p,nm,layer){
+  const rows=(d.rows(p)||[]).filter(r=>r[1]!=null&&String(r[1]).trim()&&r[1]!=='—');
+  const txt=d.text?d.text(p):'';
+  const chips=d.chips?d.chips(p):[];
+  const links=(d.links?d.links(p):[]).filter(l=>l&&l[1]);
+  let ll=null;
+  try{ ll=layer&&layer.getLatLng?layer.getLatLng():(layer&&layer.getBounds?layer.getBounds().getCenter():null); }catch(e){}
+  const near=ll?nearestMarker(ll,3):null;
+  openPanel(`
+    <div class="kicker gold">${esc(d.sub2(p))}</div>
+    <h2>${esc(nm)}</h2>
+    ${txt?`<hr class="hr" style="margin:var(--space-3) 0"><p class="body">${esc(txt)}</p>`:''}
+    ${rows.length?`<dl>${rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl>`:''}
+    ${chips.length?`<div class="kicker" style="margin:var(--space-4) 0 8px">What's there</div>
+      <div class="chips">${chips.map(c=>`<span class="tag tag-outline">${esc(c)}</span>`).join('')}</div>`:''}
+    ${near?`<div class="kicker" style="margin:var(--space-4) 0 6px">Nearest historical marker</div>
+      <button class="res" id="nearMk" style="border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:9px 11px">
+        <b>${esc(near.m.n)}</b><span>${near.mi<0.1?'on this spot':near.mi.toFixed(1)+' mi away'} · ${esc(near.m.c)} County</span></button>`:''}
+    ${links.length?`<div style="margin-top:var(--space-4);display:flex;gap:8px;flex-wrap:wrap">${links.map(l=>
+      `<a class="btn btn-secondary" href="${esc(l[1])}" target="_blank" rel="noopener" style="border-bottom:0">${esc(l[0])}</a>`).join('')}</div>`:''}
+    <div class="loc" style="margin-top:var(--space-3);font-size:10.5px">Source: PASDA · ${esc(d.srcs?d.srcs[0]:d.src)}</div>`);
+  const nb=document.getElementById('nearMk');
+  if(nb) nb.addEventListener('click',()=>select(near.m,true));
+}
+
+function showLandmark(d){
+  state.sel=null;
+  openPanel(`
+    <div class="kicker gold">${d.kind==='high'?'High point':'Low point'} · ${esc(d.elev)}</div>
+    <h2>${esc(d.name)}</h2>
+    <div class="loc">${esc(d.county)} County</div>
+    <hr class="hr" style="margin:var(--space-3) 0">
+    <p class="body">${esc(d.note)}</p>
+    <dl><dt>Elevation</dt><dd>${esc(d.elev)}</dd>
+      <dt>Coords</dt><dd>${d.lat.toFixed(5)}, ${d.lon.toFixed(5)}</dd></dl>`);
+  applyFilters();
+}
+
+/* The rail scrolls, so the map carries its own key for whatever is switched on. */
+/* The rail is a long scrolling list of switches; the legend is the short answer to
+   "what am I actually looking at" — grouped the same way the rail is, in the same order. */
+let legendShut=false;
+function buildLegend(){
+  const el=document.getElementById('legend');
+  const dot=c=>'<svg width="24" height="18" viewBox="0 0 24 18"><circle cx="12" cy="9" r="4" fill="'+c+'" stroke="#f3f2f2" stroke-width="1"/></svg>';
+  const groups=new Map();
+  const add=(g,swatch,label)=>{ if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([swatch,label]); };
+
+  if(state.layers.markers)
+    Object.entries(TYPE_COLOR).forEach(([t,c])=>add('Historical markers',dot(c),t+' marker'));
+  if(state.layers.peaks){
+    add('State landmarks','<svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 3 18 15 6 15Z" fill="#201f1d"/></svg>','State high point');
+    add('State landmarks','<svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 15 18 3 6 3Z" fill="#201f1d"/></svg>','State low point');
+  }
+  DATA.filter(d=>state.on[d.id]).forEach(d=>add(
+    d.group.replace(/&amp;/g,'&'),
+    d.kind==='point'?swatchFor(d):'<svg width="24" height="18" viewBox="0 0 18 18">'+swatchFor(d)+'</svg>',
+    d.label.replace(/&amp;/g,'&')));
+
+  if(!groups.size){ el.style.display='none'; el.innerHTML=''; return; }
+  const n=[...groups.values()].reduce((a,r)=>a+r.length,0);
+  el.innerHTML='<button id="lgHead"><span class="kicker gold">On the map · '+n+'</span>'
+    +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
+    +'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>'
+    +'<div id="lgBody">'
+    +[...groups].map(([g,rows])=>
+      '<div class="lg-grp">'+esc(g)+'</div>'
+      +rows.map(r=>'<div class="key">'+r[0]+'<span>'+esc(r[1])+'</span></div>').join('')
+    ).join('')+'</div>';
+  el.classList.toggle('shut',legendShut);
+  document.getElementById('lgHead').addEventListener('click',()=>{
+    legendShut=!legendShut; el.classList.toggle('shut',legendShut);
+  });
+  el.style.display='flex';
+}
+
+/* ── events ──────────────────────────────────────────────── */
+/* ── timeline, shareable view, measuring ───────────────── */
+let DECADES=[];
+function buildTimeline(){
+  const ys=state.markers.map(m=>m.y).filter(y=>y>1700&&y<2100);
+  if(!ys.length) return;
+  const lo=Math.floor(Math.min(...ys)/10)*10, hi=Math.floor(Math.max(...ys)/10)*10;
+  DECADES=[];
+  for(let d=lo;d<=hi;d+=10) DECADES.push(d);
+  const tl=document.getElementById('tl');
+  tl.max=DECADES.length; tl.value=0;
+  document.getElementById('timeline').classList.add('on');
+}
+function setDecade(i){
+  state.decade=i>0?DECADES[i-1]:0;
+  document.getElementById('tlLabel').textContent=state.decade?state.decade+'s':'All years';
+  applyFilters(); writeHash();
+}
+
+let hashLock=false;
+function writeHash(){
+  if(hashLock||!state.feats.length) return;
+  const c=map.getCenter();
+  const on=DATA.filter(d=>state.on[d.id]).map(d=>d.id);
+  const base=document.querySelector('#base input:checked').value;
+  const bits=[map.getZoom(),c.lat.toFixed(4),c.lng.toFixed(4),base,on.join('.')];
+  if(state.decade) bits.push('d'+state.decade);
+  history.replaceState(null,'','#'+bits.join('/'));
+}
+function readHash(){
+  const raw=location.hash.replace(/^#/,'');
+  if(!raw) return false;
+  const [z,lat,lon,base,layers,extra]=raw.split('/');
+  if(!isFinite(+z)||!isFinite(+lat)) return false;
+  hashLock=true;
+  const r=document.querySelector('#base input[value="'+(base||'roads')+'"]');
+  if(r){ r.checked=true; setBase(r.value); }
+  map.setView([+lat,+lon],+z);
+  (layers||'').split('.').filter(Boolean).forEach(id=>{
+    const cb=document.querySelector('[data-layer="data:'+id+'"]');
+    if(cb&&!cb.checked){ cb.checked=true; cb.dispatchEvent(new Event('change')); }
+  });
+  if(extra&&extra[0]==='d'){
+    const i=DECADES.indexOf(+extra.slice(1));
+    if(i>=0){ document.getElementById('tl').value=i+1; setDecade(i+1); }
+  }
+  hashLock=false;
+  return true;
+}
+
+/* Click to drop points, double-click or Esc to finish. */
+const measure={on:false,pts:[],line:null,dots:[],label:null};
+function measureToggle(){
+  measure.on=!measure.on;
+  document.getElementById('measure').classList.toggle('on',measure.on);
+  map.getContainer().style.cursor=measure.on?'crosshair':'';
+  if(measure.on) map.doubleClickZoom.disable(); else map.doubleClickZoom.enable();
+  if(!measure.on) measureClear();
+}
+function measureClear(){
+  if(measure.line) map.removeLayer(measure.line);
+  measure.dots.forEach(d=>map.removeLayer(d));
+  if(measure.label) map.removeLayer(measure.label);
+  measure.pts=[];measure.line=null;measure.dots=[];measure.label=null;
+}
+function measureAdd(ll){
+  measure.pts.push(ll);
+  measure.dots.push(L.circleMarker(ll,{pane:'pPeak',radius:4,color:INK,weight:2,
+    fillColor:PAPER,fillOpacity:1}).addTo(map));
+  if(measure.line) map.removeLayer(measure.line);
+  measure.line=L.polyline(measure.pts,{pane:'pPeak',color:INK,weight:2.4,dashArray:'6 4'}).addTo(map);
+  let m=0;
+  for(let i=1;i<measure.pts.length;i++) m+=measure.pts[i-1].distanceTo(measure.pts[i]);
+  const mi=m/1609.344;
+  if(measure.label) map.removeLayer(measure.label);
+  if(measure.pts.length>1)
+    measure.label=L.marker(ll,{pane:'pLab',interactive:false,
+      icon:L.divIcon({className:'clabel',iconSize:null,
+        html:'<span style="font-size:15px">'+(mi<1?Math.round(m*3.28084)+' ft':mi.toFixed(1)+' mi')+'</span>'})}).addTo(map);
+}
+
+let gazTimer;
+document.getElementById('q').addEventListener('input',()=>{
+  applyFilters();
+  clearTimeout(gazTimer); gazTimer=setTimeout(searchGazetteer,320);
+});
+document.getElementById('tl').addEventListener('input',e=>setDecade(+e.target.value));
+document.getElementById('measure').addEventListener('click',measureToggle);
+document.getElementById('share').addEventListener('click',async e=>{
+  writeHash();
+  const b=e.currentTarget, was=b.textContent;
+  try{ await navigator.clipboard.writeText(location.href); b.textContent='Copied'; }
+  catch(err){ b.textContent='Copy failed'; }
+  setTimeout(()=>{b.textContent=was},1400);
+});
+map.on('click',e=>{ if(measure.on) measureAdd(e.latlng); });
+map.on('dblclick',()=>{ if(measure.on){ measure.on=false;
+  document.getElementById('measure').classList.remove('on');
+  map.getContainer().style.cursor=''; } });
+addEventListener('keydown',e=>{ if(e.key==='Escape'&&measure.on) measureToggle(); });
+document.getElementById('type').addEventListener('change',applyFilters);
+document.getElementById('county').addEventListener('change',e=>{
+  applyFilters();
+  const f=state.feats.find(c=>c.properties.name===e.target.value);
+  if(f) map.fitBounds(L.geoJSON(f).getBounds(),{padding:[24,24]});
+  else map.fitBounds(countyLayer.getBounds(),{padding:[10,10]});
+});
+document.querySelectorAll('#base input').forEach(r=>r.addEventListener('change',e=>setBase(e.target.value)));
+document.getElementById('close').addEventListener('click',()=>{
+  document.getElementById('panel').classList.remove('open');state.sel=null;applyFilters();
+});
+map.on('zoomend',()=>{
+  toggle(labLayer,state.layers.labels&&map.getZoom()>=7);
+  iconZoom();
+  const z=map.getZoom(), r=z<8?3:z<10?4.2:z<12?5.5:7;
+  mkRefs.forEach(c=>{if(state.sel!==c._m)c.setRadius(r)});
+  document.querySelectorAll('.clabel').forEach(e=>e.style.fontSize=(z<8?11:z<10?13:15)+'px');
+});
+map.on('moveend',()=>{
+  writeHash();
+  DATA.filter(d=>d.dynamic&&state.on[d.id]).forEach(d=>{
+    const cb=document.querySelector(`[data-layer="data:${d.id}"]`);
+    if(cb) loadDynamic(d,cb.closest('.layer'));
+  });
+});
+boot();
+</script>
+</body>
+</html>
