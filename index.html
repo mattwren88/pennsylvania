@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pennsylvania — A Layered Map</title>
+<title>Keystone Atlas — A Layered Map of Pennsylvania</title>
+<meta name="description" content="An independent, layered map of Pennsylvania: every PHMC historical marker plus forty-odd layers of parks, trails, waterways, boundaries, mine lands and vanished places.">
+<meta property="og:title" content="Keystone Atlas — A Layered Map of Pennsylvania">
+<meta property="og:description" content="Every PHMC historical marker plus forty-odd layers of parks, trails, waterways, boundaries, mine lands and vanished places, drawn over real street geography.">
+<meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -17,7 +21,7 @@
   body{margin:0;overflow:hidden}
   a{color:var(--color-accent-700);text-decoration:none;border-bottom:1px solid var(--color-divider)}
   a:hover{color:var(--color-accent);border-bottom-color:var(--color-accent)}
-  #app{height:100vh;display:grid;grid-template-rows:auto 1fr}
+  #app{height:100vh;display:grid;grid-template-rows:auto 1fr auto}
   #body{display:grid;grid-template-columns:344px 1fr;min-height:0}
   #rail{border-right:1px solid var(--color-divider);display:flex;flex-direction:column;min-height:0;
         overflow-y:auto;
@@ -25,7 +29,7 @@
   .rail-pad{padding:var(--space-3) var(--space-4)}
   #panes{flex:none}
   .kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
-          color:color-mix(in srgb,var(--color-text) 55%, transparent);font-family:var(--font-body)}
+          color:color-mix(in srgb,var(--color-text) 72%, transparent);font-family:var(--font-body)}
   .kicker.gold{color:var(--color-accent-700)}
   .grp{margin-top:var(--space-3)}
   .grp:first-child{margin-top:0}
@@ -38,7 +42,7 @@
     box-shadow:inset 0 0 0 2px var(--color-bg)}
   .layer svg{margin-top:3px}
   .layer .sub{display:block;font-size:11px;line-height:1.35;margin-top:1px;
-              color:color-mix(in srgb,var(--color-text) 50%, transparent)}
+              color:color-mix(in srgb,var(--color-text) 72%, transparent)}
   .layer.busy .sub::after{content:' · loading…';color:var(--color-accent-700)}
   .layer.fail .sub::after{content:' · could not load';color:var(--color-accent-800)}
   .seg{width:100%}
@@ -49,7 +53,7 @@
        padding:9px var(--space-4);cursor:pointer;font-family:var(--font-body);color:inherit}
   .res:hover{background:color-mix(in srgb,var(--color-accent) 8%, transparent)}
   .res b{font-family:var(--font-heading);font-weight:600;font-size:15px;display:block;line-height:1.2}
-  .res span{font-size:11px;letter-spacing:.03em;color:color-mix(in srgb,var(--color-text) 55%, transparent);
+  .res span{font-size:11px;letter-spacing:.03em;color:color-mix(in srgb,var(--color-text) 72%, transparent);
             font-variant-numeric:tabular-nums}
   .res.sel{background:color-mix(in srgb,var(--color-accent) 14%, transparent)}
   #stage{position:relative;min-height:0;overflow:hidden}
@@ -58,12 +62,12 @@
   .terrain .leaflet-tile-pane{filter:sepia(.3) saturate(.3) contrast(1.04) brightness(1.02);opacity:1}
   .leaflet-container{background:var(--color-bg)}
   .leaflet-control-attribution{background:color-mix(in srgb,var(--color-surface) 82%, transparent)!important;
-    font-family:var(--font-body);font-size:9.5px;color:color-mix(in srgb,var(--color-text) 62%,transparent)}
+    font-family:var(--font-body);font-size:11px;color:color-mix(in srgb,var(--color-text) 75%,transparent)}
   .leaflet-control-attribution a{border-bottom:0}
   .leaflet-tooltip{font-family:var(--font-body);font-size:11.5px;border-radius:2px;
     border:1px solid var(--color-divider);box-shadow:var(--shadow-sm)}
   .clabel{background:none;border:0;box-shadow:none;padding:0;font-family:var(--font-heading);font-weight:500;
-    color:color-mix(in srgb,var(--color-text) 72%,transparent);white-space:nowrap;
+    color:color-mix(in srgb,var(--color-text) 85%,transparent);white-space:nowrap;
     text-shadow:0 0 3px var(--color-bg),0 0 3px var(--color-bg),0 0 5px var(--color-bg)}
   .clabel > span{display:inline-block;transform:translate(-50%,-50%)}
   .clabel::before{display:none}
@@ -78,18 +82,18 @@
   #panel.open{display:block}
   #panel h2{font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.12;margin:8px 0 2px}
   #panel .body{font-size:13.5px;line-height:1.62;text-align:justify;hyphens:auto;margin:var(--space-3) 0 0}
-  #panel .loc{font-size:12px;line-height:1.5;color:color-mix(in srgb,var(--color-text) 62%,transparent);margin-top:6px}
+  #panel .loc{font-size:12px;line-height:1.5;color:color-mix(in srgb,var(--color-text) 75%,transparent);margin-top:6px}
   #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);margin:var(--space-3) 0 0;font-size:11.5px}
   #panel dt{letter-spacing:.1em;text-transform:uppercase;font-size:9.5px;padding-top:2px;
-            color:color-mix(in srgb,var(--color-text) 50%,transparent)}
+            color:color-mix(in srgb,var(--color-text) 72%,transparent)}
   #panel dd{margin:0;font-variant-numeric:tabular-nums}
   #panel .chips{display:flex;flex-wrap:wrap;gap:5px}
   #panel .chips .tag{font-size:10.5px}
   #close{position:absolute;top:10px;right:10px;background:none;border:0;cursor:pointer;font-size:18px;line-height:1;
-    color:color-mix(in srgb,var(--color-text) 45%,transparent);padding:4px 6px;border-radius:var(--radius-md)}
+    color:color-mix(in srgb,var(--color-text) 70%,transparent);padding:4px 6px;border-radius:var(--radius-md)}
   #close:hover{color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
   #legend{position:absolute;left:var(--space-4);bottom:26px;z-index:600;font-size:11px;width:212px;
-    color:color-mix(in srgb,var(--color-text) 72%,transparent);display:none;flex-direction:column;
+    color:color-mix(in srgb,var(--color-text) 75%,transparent);display:none;flex-direction:column;
     background:color-mix(in srgb,var(--color-surface) 93%, transparent);
     border:1px solid var(--color-divider);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
   #lgHead{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
@@ -120,56 +124,171 @@
   #tl::-moz-range-track{height:2px;background:var(--color-divider)}
   #tl::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--color-accent);border:2px solid var(--color-bg)}
   .res .src{float:right;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
-    color:color-mix(in srgb,var(--color-text) 40%,transparent)}
+    color:color-mix(in srgb,var(--color-text) 72%,transparent)}
   .grp-head{padding:8px var(--space-4) 4px;background:color-mix(in srgb,var(--color-accent) 5%,transparent);
     border-bottom:1px solid var(--color-divider)}
   .count{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:15px}
   #loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-heading);z-index:700;
-    font-size:17px;color:color-mix(in srgb,var(--color-text) 55%,transparent);background:var(--color-bg)}
+    font-size:17px;color:color-mix(in srgb,var(--color-text) 72%,transparent);background:var(--color-bg)}
   :focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+  #foot{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;
+    padding:6px var(--space-4);border-top:1px solid var(--color-divider);
+    background:var(--color-surface);font-family:var(--font-body);font-size:11px;line-height:1.4;
+    color:color-mix(in srgb,var(--color-text) 75%,transparent)}
+  #foot .dot{color:color-mix(in srgb,var(--color-text) 30%,transparent)}
+  #foot button{background:none;border:0;padding:0;cursor:pointer;font:inherit;
+    color:var(--color-accent-700);border-bottom:1px solid var(--color-divider)}
+  #foot button:hover{color:var(--color-accent);border-bottom-color:var(--color-accent)}
+  #aboutModal{position:fixed;inset:0;z-index:1200;display:none;place-items:center;
+    background:color-mix(in srgb,var(--color-neutral-900) 42%,transparent);padding:var(--space-4)}
+  #aboutModal.open{display:grid}
+  #aboutCard{position:relative;width:min(640px,100%);max-height:85vh;overflow-y:auto;
+    background:var(--color-surface);border:1px solid var(--color-divider);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:var(--space-6) var(--space-8)}
+  #aboutCard h2{font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1.1;margin:0 0 2px}
+  #aboutCard h3{font-family:var(--font-heading);font-weight:600;font-size:17px;margin:var(--space-4) 0 4px;
+    padding-bottom:2px;border-bottom:1px solid var(--color-divider)}
+  #aboutCard p,#aboutCard ul{font-size:13.5px;line-height:1.62;margin:6px 0}
+  #aboutCard ul{padding-left:1.2em}
+  #aboutCard .fine{font-size:12px;color:color-mix(in srgb,var(--color-text) 75%,transparent)}
+  #aboutClose{position:absolute;top:10px;right:10px;background:none;border:0;cursor:pointer;
+    font-size:18px;line-height:1;padding:4px 6px;border-radius:var(--radius-md);
+    color:color-mix(in srgb,var(--color-text) 70%,transparent)}
+  #aboutClose:hover{color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+  .sr-skip{position:absolute;left:8px;top:-48px;z-index:1300;background:var(--color-surface);
+    padding:10px 16px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);transition:top .15s}
+  .sr-skip:focus{top:8px}
+  h2.kicker{margin:0;font-weight:inherit}
+  #railHandle{display:none}
+  @media (pointer:coarse){
+    #tools button,#about,#footAbout,.btn{min-height:44px}
+    #close,#aboutClose{padding:12px 14px}
+    .layer{padding:9px 0}
+    #tl::-webkit-slider-thumb{width:18px;height:18px;margin-top:-8px}
+    #tl::-moz-range-thumb{width:18px;height:18px}
+  }
+  @media (max-width:720px){
+    #app{height:100vh;height:100dvh}
+    #body{grid-template-columns:1fr}
+    #tagline{display:none}
+    #footData{display:none}
+    #railHandle{display:flex;align-items:center;justify-content:center;gap:10px;
+      position:fixed;left:0;right:0;bottom:var(--footH,28px);height:48px;z-index:1060;
+      background:var(--color-surface);border:0;border-top:1px solid var(--color-divider);cursor:pointer;
+      font-family:var(--font-body);font-size:13px;color:var(--color-accent-700);box-shadow:var(--shadow-md)}
+    #railHandle .grip{width:36px;height:4px;border-radius:2px;
+      background:color-mix(in srgb,var(--color-text) 30%,transparent)}
+    #rail{position:fixed;left:0;right:0;bottom:calc(var(--footH,28px) + 48px);top:auto;z-index:1050;
+      max-height:62dvh;border-right:0;border-top:1px solid var(--color-divider);
+      box-shadow:var(--shadow-lg);transform:translateY(calc(100% + var(--footH,28px) + 48px));transition:transform .25s ease;
+      visibility:hidden}
+    #rail.open{transform:none;visibility:visible}
+    #panel{width:auto;left:var(--space-2);right:var(--space-2);top:auto;bottom:56px;max-height:52dvh}
+    #legend{width:auto;max-width:min(212px,calc(100vw - 120px));bottom:56px}
+    #tools{bottom:56px}
+    #foot{padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+  }
 </style>
 </head>
 <body>
+<a href="#stage" class="sr-skip">Skip to map</a>
+<div id="announce" class="sr-only" aria-live="polite"></div>
 <div id="app">
   <header class="nav">
-    <span class="nav-brand" style="font-size:19px">Pennsylvania</span>
-    <span class="kicker" style="margin-left:-8px">A Layered Map</span>
+    <h1 class="nav-brand" style="font-size:19px;margin:0;font-weight:inherit">Keystone Atlas</h1>
+    <span class="kicker" id="tagline" style="margin-left:-8px">A Layered Map of Pennsylvania</span>
     <span style="flex:1"></span>
-    <span class="kicker"><span class="count" id="hdrCount">—</span> markers shown</span>
+    <span class="kicker" aria-live="polite"><span class="count" id="hdrCount">—</span> markers shown</span>
+    <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
   </header>
   <div id="body">
-    <aside id="rail">
+    <button id="railHandle" aria-expanded="false" aria-controls="rail"><span class="grip" aria-hidden="true"></span>Search &amp; layers</button>
+    <aside id="rail" aria-label="Search and layers">
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
-        <div class="kicker gold">Base</div>
-        <div class="seg" id="base">
-          <label class="seg-opt"><input type="radio" name="base" value="roads" checked hidden>Roads</label>
-          <label class="seg-opt"><input type="radio" name="base" value="terrain" hidden>Terrain</label>
-          <label class="seg-opt"><input type="radio" name="base" value="paper" hidden>Paper</label>
+        <h2 class="kicker gold">Base</h2>
+        <div class="seg" id="base" role="radiogroup" aria-label="Base map">
+          <label class="seg-opt"><input type="radio" name="base" value="roads" checked class="sr-only">Roads</label>
+          <label class="seg-opt"><input type="radio" name="base" value="terrain" class="sr-only">Terrain</label>
+          <label class="seg-opt"><input type="radio" name="base" value="paper" class="sr-only">Paper</label>
         </div>
       </div>
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
-        <div class="kicker gold">Search everything</div>
-        <input class="input" id="q" type="search" placeholder="Markers, parks, summits, towns…" autocomplete="off">
-        <select class="input" id="county"><option value="">All 67 counties</option></select>
-        <select class="input" id="type"><option value="">All marker types</option></select>
+        <h2 class="kicker gold">Search everything</h2>
+        <input class="input" id="q" type="search" placeholder="Markers, parks, summits, towns…" autocomplete="off" aria-label="Search markers, layers and places">
+        <select class="input" id="county" aria-label="Filter by county"><option value="">All 67 counties</option></select>
+        <select class="input" id="type" aria-label="Filter by marker type"><option value="">All marker types</option></select>
         <div id="timeline">
-          <div class="tl-head"><span class="kicker">Dedicated</span><span id="tlLabel">All years</span></div>
-          <input type="range" id="tl" min="0" max="0" step="1" value="0">
+          <div class="tl-head"><span class="kicker" id="tlKick">Dedicated</span><span id="tlLabel">All years</span></div>
+          <input type="range" id="tl" min="0" max="0" step="1" value="0" aria-label="Dedication decade" aria-valuetext="All years">
         </div>
       </div>
       <div id="panes"><div class="rail-pad" id="layers"></div></div>
       <div id="results"></div>
     </aside>
-    <div id="stage">
+    <main id="stage">
       <div id="map" class="roads"></div>
       <div id="legend"></div>
       <div id="tools">
         <button class="btn btn-secondary" id="measure" title="Measure a distance">Measure</button>
         <button class="btn btn-secondary" id="share" title="Copy a link to this view">Copy link</button>
       </div>
-      <div id="panel"><button id="close" title="Close">×</button><div id="panelBody"></div></div>
+      <div id="panel"><button id="close" aria-label="Close"><span aria-hidden="true">×</span></button><div id="panelBody"></div></div>
       <div id="loading">Drawing the Commonwealth…</div>
-    </div>
+    </main>
+  </div>
+  <footer id="foot">
+    <span>Not affiliated with the Commonwealth of Pennsylvania or the PHMC</span>
+    <span class="dot" aria-hidden="true">·</span>
+    <span id="footData">Data: PASDA · PHMC · U.S. Census · OpenStreetMap</span>
+    <span class="dot" aria-hidden="true">·</span>
+    <span>Provided as-is; not for navigation</span>
+    <span class="dot" aria-hidden="true">·</span>
+    <button id="footAbout">About</button>
+    <span class="dot" aria-hidden="true">·</span>
+    <a href="https://ko-fi.com/CHANGEME" target="_blank" rel="noopener"><span aria-hidden="true">☕</span> Support this map</a>
+  </footer>
+</div>
+<div id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+  <div id="aboutCard">
+    <button id="aboutClose" aria-label="Close"><span aria-hidden="true">×</span></button>
+    <div class="kicker gold">Keystone Atlas</div>
+    <h2 id="aboutTitle">A layered map of Pennsylvania</h2>
+    <p>Every Pennsylvania historical marker with a known location — 2,585 of them, merged from the
+      PHMC's export and its live map service — plus forty-odd layers of parks, trails, waterways,
+      boundaries, abandoned mine lands, natural landmarks and vanished places, drawn over real
+      street geography.</p>
+    <h3>How to use it</h3>
+    <ul>
+      <li><b>Search everything</b> — markers, every loaded layer and the USGS gazetteer at once.</li>
+      <li><b>Layers</b> load the first time you tick them; large ones fetch only what the viewport covers.</li>
+      <li><b>Filter</b> markers by county, type, and dedication decade.</li>
+      <li><b>Copy link</b> captures the view, base map, active layers and decade in a shareable URL.</li>
+    </ul>
+    <h3>Data sources &amp; credits</h3>
+    <p>Live layers come from <a href="https://www.pasda.psu.edu/" target="_blank" rel="noopener">PASDA</a>
+      (Pennsylvania Spatial Data Access, Penn State), whose underlying agencies include the PHMC, DCNR,
+      PennDOT, DEP, the Fish &amp; Boat and Game Commissions, WeConservePA, FEMA and NGS. County geometry
+      is U.S. Census via us-atlas. Street tiles © OpenStreetMap contributors; hillshade by Esri and USGS.
+      Marker text and details are from the Pennsylvania Historical &amp; Museum Commission.</p>
+    <h3>Honesty about the data</h3>
+    <ul class="fine">
+      <li>County high points are the highest <i>named</i> summit per county; the true maximum is often an unnamed rise.</li>
+      <li>Covered bridges and fire towers are filtered from the GNIS gazetteer by name — named features, not a complete inventory.</li>
+      <li>"Places that are gone" are features GNIS marks (historical); no closure date or cause is recorded.</li>
+      <li>Trail activity flags are undocumented codes read as permitted/not; unknowns are omitted.</li>
+      <li>A fetch that hits the paging cap says so rather than reporting a truncated count.</li>
+    </ul>
+    <h3>Legal</h3>
+    <p class="fine">This is an independent, personal project — not affiliated with, endorsed by, or
+      representing the Commonwealth of Pennsylvania, the PHMC, or any other agency. All data is drawn
+      from public sources and presented as-is, with no warranty of accuracy or completeness. Do not
+      rely on it for navigation, property or legal-boundary determinations, or safety decisions —
+      the flood-hazard and abandoned-mine layers in particular are informational only; consult the
+      official sources.</p>
+    <h3>Support</h3>
+    <p>The map is free and has no ads. If it's useful to you, you can
+      <a href="https://ko-fi.com/CHANGEME" target="_blank" rel="noopener">☕ chip in toward hosting</a>.</p>
   </div>
 </div>
 <script>
@@ -777,6 +896,7 @@ async function loadDynamic(d,label){
   }catch(err){
     console.warn('layer failed',d.id,err);
     label.classList.add('fail');
+    announce(d.label+' could not load');
     const cb=label.querySelector('input'); cb.checked=false; state.on[d.id]=false;
   }finally{ state.busy[d.id]=false; label.classList.remove('busy'); }
 }
@@ -803,6 +923,7 @@ async function toggleData(d,on,label){
   }catch(err){
     console.warn('layer failed',d.id,err);
     label.classList.add('fail');
+    announce(d.label+' could not load');
     const cb=label.querySelector('input'); cb.checked=false; state.on[d.id]=false;
   }finally{ label.classList.remove('busy'); }
 }
@@ -948,11 +1069,11 @@ function buildRail(){
       <input type="checkbox" data-layer="${id}" ${checked?'checked':''}>
       ${swatch.startsWith('<svg')?swatch:`<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">${swatch}</svg>`}
       <div>${label}<span class="sub">${sub}</span></div></label>`;
-  let html=`<div class="grp"><div class="kicker gold">The base map</div>`
+  let html=`<div class="grp"><h2 class="kicker gold">The base map</h2>`
     +BASE_DEFS.map(l=>row(l.id,l.label,l.sub,l.swatch,state.layers[l.id])).join('')+`</div>`;
   const groups=[...new Set(DATA.map(d=>d.group))];
   groups.forEach(g=>{
-    html+=`<div class="grp"><div class="kicker gold">${g}</div>`
+    html+=`<div class="grp"><h2 class="kicker gold">${g}</h2>`
       +DATA.filter(d=>d.group===g).map(d=>row('data:'+d.id,d.label,
         d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false)).join('')+`</div>`;
   });
@@ -1053,9 +1174,10 @@ function renderResults(){
     }))});
 
   if(!groups.length){
-    box.innerHTML='<div class="rail-pad" style="font-size:13px;color:color-mix(in srgb,var(--color-text) 55%,transparent)">'
+    box.innerHTML='<div class="rail-pad" style="font-size:13px;color:color-mix(in srgb,var(--color-text) 72%,transparent)">'
       +'Nothing matches'+(ql?' “'+esc(q)+'”':'')+'.'
       +(ql?'<br><span class="kicker">Layers are searched once you switch them on</span>':'')+'</div>';
+    if(ql) announce('No results');
     return;
   }
 
@@ -1067,6 +1189,7 @@ function renderResults(){
       +'<b>'+esc(it.label)+'</b><span>'+esc(it.meta||'')+'</span></button>'; }).join('')
   ).join('');
   box.querySelectorAll('.res').forEach(b=>b.addEventListener('click',()=>flat[+b.dataset.i]()));
+  if(ql) announce(fmt(flat.length)+' result'+(flat.length===1?'':'s'));
 }
 
 /* The gazetteer holds names the map has no layer for, so query it by name directly. */
@@ -1195,8 +1318,8 @@ function buildLegend(){
 
   if(!groups.size){ el.style.display='none'; el.innerHTML=''; return; }
   const n=[...groups.values()].reduce((a,r)=>a+r.length,0);
-  el.innerHTML='<button id="lgHead"><span class="kicker gold">On the map · '+n+'</span>'
-    +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
+  el.innerHTML='<button id="lgHead" aria-expanded="'+(!legendShut)+'" aria-controls="lgBody"><span class="kicker gold">On the map · '+n+'</span>'
+    +'<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" '
     +'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>'
     +'<div id="lgBody">'
     +[...groups].map(([g,rows])=>
@@ -1204,8 +1327,9 @@ function buildLegend(){
       +rows.map(r=>'<div class="key">'+r[0]+'<span>'+esc(r[1])+'</span></div>').join('')
     ).join('')+'</div>';
   el.classList.toggle('shut',legendShut);
-  document.getElementById('lgHead').addEventListener('click',()=>{
+  document.getElementById('lgHead').addEventListener('click',e=>{
     legendShut=!legendShut; el.classList.toggle('shut',legendShut);
+    e.currentTarget.setAttribute('aria-expanded',!legendShut);
   });
   el.style.display='flex';
 }
@@ -1225,7 +1349,9 @@ function buildTimeline(){
 }
 function setDecade(i){
   state.decade=i>0?DECADES[i-1]:0;
-  document.getElementById('tlLabel').textContent=state.decade?state.decade+'s':'All years';
+  const txt=state.decade?state.decade+'s':'All years';
+  document.getElementById('tlLabel').textContent=txt;
+  document.getElementById('tl').setAttribute('aria-valuetext',txt);
   applyFilters(); writeHash();
 }
 
@@ -1301,8 +1427,8 @@ document.getElementById('measure').addEventListener('click',measureToggle);
 document.getElementById('share').addEventListener('click',async e=>{
   writeHash();
   const b=e.currentTarget, was=b.textContent;
-  try{ await navigator.clipboard.writeText(location.href); b.textContent='Copied'; }
-  catch(err){ b.textContent='Copy failed'; }
+  try{ await navigator.clipboard.writeText(location.href); b.textContent='Copied'; announce('Link copied'); }
+  catch(err){ b.textContent='Copy failed'; announce('Copy failed'); }
   setTimeout(()=>{b.textContent=was},1400);
 });
 map.on('click',e=>{ if(measure.on) measureAdd(e.latlng); });
@@ -1310,6 +1436,49 @@ map.on('dblclick',()=>{ if(measure.on){ measure.on=false;
   document.getElementById('measure').classList.remove('on');
   map.getContainer().style.cursor=''; } });
 addEventListener('keydown',e=>{ if(e.key==='Escape'&&measure.on) measureToggle(); });
+/* ── announcements ───────────────── */
+function announce(msg){ document.getElementById('announce').textContent=msg; }
+
+/* ── about modal ───────────────── */
+const aboutModal=document.getElementById('aboutModal');
+let aboutReturnFocus=null;
+function aboutSet(on){
+  aboutModal.classList.toggle('open',on);
+  if(on){ aboutReturnFocus=document.activeElement;
+    document.getElementById('aboutClose').focus(); }
+  else if(aboutReturnFocus&&aboutReturnFocus.focus){ aboutReturnFocus.focus(); aboutReturnFocus=null; }
+}
+document.getElementById('about').addEventListener('click',()=>aboutSet(true));
+document.getElementById('footAbout').addEventListener('click',()=>aboutSet(true));
+document.getElementById('aboutClose').addEventListener('click',()=>aboutSet(false));
+aboutModal.addEventListener('click',e=>{ if(e.target===aboutModal) aboutSet(false); });
+aboutModal.addEventListener('keydown',e=>{                        /* focus trap */
+  if(e.key!=='Tab') return;
+  const f=aboutModal.querySelectorAll('button,a[href]');
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
+addEventListener('keydown',e=>{ if(e.key==='Escape'&&aboutModal.classList.contains('open')) aboutSet(false); });
+if(!localStorage.getItem('aboutSeen')){ aboutSet(true); localStorage.setItem('aboutSeen','1'); }
+
+/* ── mobile drawer + resize ───────────────── */
+const railEl=document.getElementById('rail'), railHandle=document.getElementById('railHandle');
+function railSet(on){
+  railEl.classList.toggle('open',on);
+  railHandle.setAttribute('aria-expanded',on);
+}
+railHandle.addEventListener('click',()=>railSet(!railEl.classList.contains('open')));
+document.getElementById('results').addEventListener('click',e=>{
+  if(e.target.closest('.res')&&getComputedStyle(railHandle).display!=='none') railSet(false);
+});
+const footEl=document.getElementById('foot');
+function setFootH(){ document.documentElement.style.setProperty('--footH',footEl.offsetHeight+'px'); }
+setFootH();
+let rszT=null;
+new ResizeObserver(()=>{ setFootH();
+  clearTimeout(rszT); rszT=setTimeout(()=>map.invalidateSize(),150);
+}).observe(document.getElementById('stage'));
 document.getElementById('type').addEventListener('change',applyFilters);
 document.getElementById('county').addEventListener('change',e=>{
   applyFilters();

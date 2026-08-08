@@ -1,4 +1,4 @@
-# Pennsylvania — A Layered Map
+# Keystone Atlas — A Layered Map of Pennsylvania
 
 An interactive map of Pennsylvania: every PHMC historical marker, plus forty-odd
 layers of parks, trails, waterways, boundaries, abandoned mine lands, natural
@@ -71,3 +71,12 @@ data/markers.json                 parsed PHMC markers
 data/phmc-historical-markers.csv  the source export
 assets/styles.css                 Classical design system (tokens + stylesheet)
 ```
+
+## Disclaimer & support
+
+An independent, personal project — not affiliated with, endorsed by, or representing
+the Commonwealth of Pennsylvania, the PHMC, or any other agency. All data is drawn
+from public sources and presented as-is, with no warranty of accuracy or
+completeness; not for navigation, boundary, or safety decisions.
+
+Free, no ads. If it's useful: [☕ support the map](https://ko-fi.com/CHANGEME).
