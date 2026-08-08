@@ -69,5 +69,5 @@ Some honesty about what the sources do and don't support:
 index.html                        the whole application
 data/markers.json                 parsed PHMC markers
 data/phmc-historical-markers.csv  the source export
-_ds/                              Classical design system (tokens + stylesheet)
+assets/styles.css                 Classical design system (tokens + stylesheet)
 ```
