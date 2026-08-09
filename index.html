@@ -1543,6 +1543,10 @@ function writeHash(push){
   const on=DATA.filter(d=>state.on[d.id]).map(d=>d.id);
   const base=document.querySelector('#base input:checked').value;
   const bits=[map.getZoom(),c.lat.toFixed(4),c.lng.toFixed(4),base,on.join('.')];
+  /* The four BASE_DEFS layers live in state.layers, not state.on, so they need
+     their own segment or a shared link silently drops them. Always written, so
+     switching one OFF travels too; links without it fall back to the defaults. */
+  bits.push('b'+BASE_DEFS.filter(l=>state.layers[l.id]).map(l=>l.id).join('.'));
   if(state.decade) bits.push('d'+state.decade);
   if(state.sel&&state.sel.id) bits.push('m'+state.sel.id);
   const url='#'+bits.join('/');
@@ -1564,6 +1568,16 @@ function readHash(){
     if(cb&&!cb.checked){ cb.checked=true; cb.dispatchEvent(new Event('change')); }
   });
   const tags=parts.slice(5);
+  const bl=tags.find(t=>t[0]==='b');
+  if(bl!==undefined){                       /* absent on older links — keep defaults */
+    const want=new Set(bl.slice(1).split('.').filter(Boolean));
+    BASE_DEFS.forEach(l=>{
+      state.layers[l.id]=want.has(l.id);
+      const cb=document.querySelector('[data-layer="'+l.id+'"]');
+      if(cb) cb.checked=state.layers[l.id];
+    });
+    syncLayers();
+  }
   const dec=tags.find(t=>t[0]==='d');
   if(dec){
     const i=DECADES.indexOf(+dec.slice(1));
