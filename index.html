@@ -804,7 +804,10 @@ const BASE_DEFS=[
    swatch:'<path d="M9 4 L15 14 L3 14 Z" fill="#201f1d"/>'}
 ];
 
-const state={markers:[],feats:[],byCounty:{},filtered:[],sel:null,
+/* `sel` is the selected marker (drives styling and the results list); `pick`
+   describes whatever the detail panel is showing, in a form the URL can carry —
+   four kinds open that panel and all of them should be shareable. */
+const state={markers:[],feats:[],byCounty:{},filtered:[],sel:null,pick:null,pending:null,
   layers:{counties:true,labels:true,markers:false,peaks:false},
   on:{},loaded:{},busy:{},decade:0,gaz:{q:'',rows:[]}};
 
@@ -1010,6 +1013,7 @@ async function loadDynamic(d,label){
       ? fmt(layer.getLayers().length)+'+ in view — zoom in for the rest'
       : fmt(layer.getLayers().length)+' in view · PASDA';
     iconZoom();
+    resolvePending();
   }catch(err){
     console.warn('layer failed',d.id,err);
     label.classList.add('fail');
@@ -1027,7 +1031,7 @@ async function toggleData(d,on,label){
   }
   if(!on){ if(state.loaded[d.id]&&map.hasLayer(state.loaded[d.id])) map.removeLayer(state.loaded[d.id]); return; }
   if(d.dynamic) return loadDynamic(d,label);
-  if(state.loaded[d.id]){ state.loaded[d.id].addTo(map); reorder(); iconZoom(); return; }
+  if(state.loaded[d.id]){ state.loaded[d.id].addTo(map); reorder(); iconZoom(); resolvePending(); return; }
   label.classList.add('busy'); label.classList.remove('fail');
   try{
     const layer=await fetchLayer(d);
@@ -1037,6 +1041,7 @@ async function toggleData(d,on,label){
     label.querySelector('.sub').textContent=fmt(n)+(layer._capped?'+':'')+' features · PASDA'
       +(d.kind==='point'&&n>400?' · from zoom 9':'');
     iconZoom();
+    resolvePending();
   }catch(err){
     console.warn('layer failed',d.id,err);
     label.classList.add('fail');
@@ -1329,13 +1334,7 @@ function renderResults(){
   if(ql&&state.gaz.q===ql&&state.gaz.rows.length)
     groups.push({title:'Place names (USGS gazetteer)',items:state.gaz.rows.map(r=>({
       label:r.n,meta:r.cls+(r.co?' · '+r.co+' County':'')+(r.el>0?' · '+fmt(r.el)+' ft':''),
-      go:()=>{ map.flyTo([r.lat,r.lon],14,{duration:.9});
-        openPanel('<div class="kicker gold">'+esc(r.cls)+'</div><h2>'+esc(r.n)+'</h2>'
-          +'<div class="loc">'+esc(r.co||'')+(r.co?' County':'')+'</div><dl>'
-          +(r.el>0?'<dt>Elevation</dt><dd>'+fmt(r.el)+' ft</dd>':'')
-          +'<dt>Coords</dt><dd>'+r.lat.toFixed(5)+', '+r.lon.toFixed(5)+'</dd>'
-          +(r.quad?'<dt>USGS quad</dt><dd>'+esc(r.quad)+'</dd>':'')+'</dl>'
-          +'<div class="loc" style="margin-top:var(--space-3);font-size:10.5px">Source: PA GNIS 2017 via PASDA</div>'); }
+      go:()=>{ map.flyTo([r.lat,r.lon],14,{duration:.9}); showPlace(r); }
     }))});
 
   if(!groups.length){
@@ -1383,11 +1382,12 @@ function openPanel(html){document.getElementById('panelBody').innerHTML=html;
   document.getElementById('panel').classList.add('open')}
 function closePanel(){
   document.getElementById('panel').classList.remove('open');
-  state.sel=null; applyFilters(); writeHash();
+  state.sel=null; state.pick=null; state.pending=null; applyFilters(); writeHash();
 }
 
 function select(m,fly){
   state.sel=m;
+  state.pick=m.id?{k:'m',id:m.id}:null;
   if(!state.layers.markers){ // searching for a marker should show the marker layer
     state.layers.markers=true;
     const cb=document.querySelector('[data-layer=markers]');
@@ -1437,6 +1437,8 @@ function nearestMarker(ll,maxMi){
 }
 
 function showFeature(d,p,nm,layer){
+  const at=featPos(layer);
+  if(at){ state.pick={k:'f',layer:d.id,lat:at.lat,lon:at.lng}; writeHash(true); }
   const rows=(d.rows(p)||[]).filter(r=>r[1]!=null&&String(r[1]).trim()&&r[1]!=='—');
   const txt=d.text?d.text(p):'';
   const chips=d.chips?d.chips(p):[];
@@ -1461,8 +1463,32 @@ function showFeature(d,p,nm,layer){
   if(nb) nb.addEventListener('click',()=>select(near.m,true));
 }
 
+/* A feature's position: its point, or the centre of its extent for lines and
+   polygons. Doubles as the identity we put in the URL — layer features have no
+   stable id across PASDA queries, but their location is stable enough. */
+function featPos(layer){
+  try{
+    if(layer&&layer.getLatLng) return layer.getLatLng();
+    if(layer&&layer.getBounds) return layer.getBounds().getCenter();
+  }catch(e){}
+  return null;
+}
+
+function showPlace(r){
+  state.pick={k:'g',lat:r.lat,lon:r.lon,n:r.n,cls:r.cls,co:r.co,el:r.el,quad:r.quad};
+  writeHash(true);
+  openPanel('<div class="kicker gold">'+esc(r.cls||'Place')+'</div><h2>'+esc(r.n)+'</h2>'
+    +'<div class="loc">'+esc(r.co||'')+(r.co?' County':'')+'</div><dl>'
+    +(r.el>0?'<dt>Elevation</dt><dd>'+fmt(r.el)+' ft</dd>':'')
+    +'<dt>Coords</dt><dd>'+r.lat.toFixed(5)+', '+r.lon.toFixed(5)+'</dd>'
+    +(r.quad?'<dt>USGS quad</dt><dd>'+esc(r.quad)+'</dd>':'')+'</dl>'
+    +'<div class="loc" style="margin-top:var(--space-3);font-size:10.5px">Source: PA GNIS 2017 via PASDA</div>');
+}
+
 function showLandmark(d){
   state.sel=null;
+  state.pick={k:'l',i:LANDMARKS.indexOf(d)};
+  writeHash(true);
   openPanel(`
     <div class="kicker gold">${d.kind==='high'?'High point':'Low point'} · ${esc(d.elev)}</div>
     <h2>${esc(d.name)}</h2>
@@ -1548,7 +1574,11 @@ function writeHash(push){
      switching one OFF travels too; links without it fall back to the defaults. */
   bits.push('b'+BASE_DEFS.filter(l=>state.layers[l.id]).map(l=>l.id).join('.'));
   if(state.decade) bits.push('d'+state.decade);
-  if(state.sel&&state.sel.id) bits.push('m'+state.sel.id);
+  const p=state.pick, ll=p&&(p.lat!=null)?p.lat.toFixed(5)+'~'+p.lon.toFixed(5):'';
+  if(p&&p.k==='m') bits.push('m'+p.id);
+  else if(p&&p.k==='f') bits.push('f'+p.layer+'~'+ll);
+  else if(p&&p.k==='l') bits.push('l'+p.i);
+  else if(p&&p.k==='g') bits.push('g'+ll+'~'+encodeURIComponent(p.n));
   const url='#'+bits.join('/');
   if(url===location.hash) return;
   history[push?'pushState':'replaceState'](null,'',url);
@@ -1583,10 +1613,61 @@ function readHash(){
     const i=DECADES.indexOf(+dec.slice(1));
     if(i>=0){ document.getElementById('tl').value=i+1; setDecade(i+1); }
   }
-  const sel=tags.find(t=>t[0]==='m');
-  const m=sel&&state.markers.find(x=>x.id===sel.slice(1));
-  if(m) select(m); else closePanel();
+  applyPick(tags.find(t=>'mflg'.includes(t[0])));
   hashLock=false;
+  return true;
+}
+
+/* Reopen whatever the link points at. Markers, landmarks and gazetteer places
+   are self-contained; a layer feature has to wait for its layer to arrive, so it
+   parks in state.pending and resolvePending() retries after each layer loads. */
+function applyPick(tag){
+  state.pending=null;
+  if(!tag){ closePanel(); return; }
+  const kind=tag[0], rest=tag.slice(1);
+  if(kind==='m'){
+    const m=state.markers.find(x=>x.id===rest);
+    if(m) select(m); else closePanel();
+  } else if(kind==='l'){
+    const d=LANDMARKS[+rest];
+    if(d) showLandmark(d); else closePanel();
+  } else if(kind==='g'){
+    const [lat,lon,n]=rest.split('~');
+    if(isFinite(+lat)&&n) showPlace({lat:+lat,lon:+lon,n:decodeURIComponent(n),cls:'Place'});
+    else closePanel();
+  } else if(kind==='f'){
+    const [id,lat,lon]=rest.split('~');
+    if(!isFinite(+lat)){ closePanel(); return; }
+    /* Not closePanel() — that clears state.pending, and the whole point is to
+       still be waiting when the layer arrives. */
+    state.pending={layer:id,lat:+lat,lon:+lon};
+    resolvePending();
+  }
+}
+
+/* Match by position — within ~120 m, the closest feature in that layer wins. */
+function resolvePending(){
+  const p=state.pending;
+  if(!p) return false;
+  const d=DATA.find(x=>x.id===p.layer), lyr=state.loaded[p.layer];
+  if(!d||!lyr||!lyr.eachLayer) return false;
+  const want=L.latLng(p.lat,p.lon);
+  let best=null,bestD=Infinity;
+  lyr.eachLayer(l=>{
+    const at=featPos(l);
+    if(!at||!l.feature) return;
+    const dd=want.distanceTo(at);
+    if(dd<bestD){ bestD=dd; best=l; }
+  });
+  /* The layer has arrived, so this was our chance — clear the request either way,
+     or a stale one would spring open the next time that layer is switched on. */
+  state.pending=null;
+  if(!best||bestD>120) return false;
+  const props=best.feature.properties||{};
+  let nm=''; try{ nm=d.name(props)||d.label; }catch(e){ nm=d.label; }
+  const lock=hashLock; hashLock=true;      /* restoring, not a new selection */
+  showFeature(d,props,String(nm),best);
+  hashLock=lock;
   return true;
 }
 /* Back/forward replays whatever the hash says, so it steps through selections
