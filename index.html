@@ -154,7 +154,7 @@
   #close{position:absolute;top:10px;right:10px;background:none;border:0;cursor:pointer;font-size:18px;line-height:1;
     color:color-mix(in srgb,var(--color-text) 70%,transparent);padding:4px 6px;border-radius:var(--radius-md)}
   #close:hover{color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
-  #legend{position:absolute;left:var(--space-4);bottom:26px;z-index:600;font-size:11px;width:212px;
+  #legend{position:absolute;left:var(--space-4);bottom:26px;z-index:600;font-size:11px;width:228px;
     color:color-mix(in srgb,var(--color-text) 75%,transparent);display:none;flex-direction:column;
     background:color-mix(in srgb,var(--color-surface) 93%, transparent);
     border:1px solid var(--color-divider);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
@@ -165,12 +165,23 @@
   #legend.shut #lgHead svg{transform:rotate(-90deg)}
   #lgBody{padding:0 12px 10px;max-height:min(52vh,420px);overflow:auto}
   #legend.shut #lgBody{display:none}
-  #legend .lg-grp{font-family:var(--font-heading);font-size:12.5px;font-weight:600;margin:9px 0 3px;
+  #legend .lg-grp{display:flex;align-items:center;justify-content:space-between;gap:6px;
+    font-family:var(--font-heading);font-size:12.5px;font-weight:600;margin:9px 0 3px;
     color:var(--color-text);padding-bottom:2px;border-bottom:1px solid var(--color-divider)}
   #legend .lg-grp:first-child{margin-top:0}
-  #legend .key{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:7px;line-height:1.3;
-    padding:1.5px 0}
+  /* min-height matches the 24px remove button, so rows with and without one keep
+     the same rhythm and the buttons never crowd each other's tap target. */
+  #legend .key{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:7px;line-height:1.3;
+    min-height:24px}
   #legend .key svg{display:block}
+  /* Dimmed rather than hover-only: the legend shows on phones, where there is no hover. */
+  #legend .lg-x{display:flex;align-items:center;justify-content:center;width:24px;height:24px;flex:none;
+    background:none;border:0;cursor:pointer;font-size:13px;line-height:1;padding:0;margin-right:-6px;
+    border-radius:var(--radius-md);opacity:.45;
+    color:inherit;font-family:var(--font-body);transition:opacity .15s,color .15s}
+  #legend .lg-x:hover{opacity:1;color:var(--color-accent-700);
+    background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
+  #legend .lg-x:focus-visible{opacity:1;color:var(--color-accent-700)}
   #tools{position:absolute;right:var(--space-4);bottom:26px;z-index:600;display:flex;gap:6px}
   #tools button{background:var(--color-surface);font-size:12px;padding:5px 11px}
   #tools button.on{border-color:var(--color-accent);color:var(--color-accent-700);
@@ -252,7 +263,7 @@
     #rail.open{transform:none;visibility:visible}
     #panel{width:auto;left:var(--space-2);right:var(--space-2);top:auto;max-height:52dvh;
       bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
-    #legend{width:auto;max-width:min(212px,calc(100vw - 120px));
+    #legend{width:auto;max-width:min(228px,calc(100vw - 120px));
       bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
     #tools{bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
     #foot{padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
@@ -1216,7 +1227,7 @@ function buildRail(){
       const d=DATA.find(x=>x.id===key.slice(5));
       toggleData(d,e.target.checked,e.target.closest('.layer'));
       buildLegend(); writeHash();
-    } else { state.layers[key]=e.target.checked; syncLayers(); }
+    } else { state.layers[key]=e.target.checked; syncLayers(); writeHash(); }
   }));
 }
 
@@ -1508,18 +1519,28 @@ function buildLegend(){
   const el=document.getElementById('legend');
   const dot=c=>'<svg width="24" height="18" viewBox="0 0 24 18"><circle cx="12" cy="9" r="4" fill="'+c+'" stroke="#f3f2f2" stroke-width="1"/></svg>';
   const groups=new Map();
-  const add=(g,swatch,label)=>{ if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([swatch,label]); };
+  /* A row's key is the rail checkbox it belongs to, so removing it can just fire that
+     checkbox rather than repeat the teardown. Markers and peaks draw several rows off
+     one switch, so their key hangs on the group heading instead of the rows. */
+  const groupKey=new Map();
+  const add=(g,swatch,label,key)=>{ if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([swatch,label,key]); };
+  const rm=(key,label)=>key?'<button class="lg-x" type="button" data-remove="'+esc(key)+'"'
+    +' aria-label="Remove '+esc(label)+'" title="Remove '+esc(label)+'">×</button>':'';
 
-  if(state.layers.markers)
+  if(state.layers.markers){
+    groupKey.set('Historical markers','markers');
     Object.entries(TYPE_COLOR).forEach(([t,c])=>add('Historical markers',dot(c),t+' marker'));
+  }
   if(state.layers.peaks){
+    groupKey.set('State landmarks','peaks');
     add('State landmarks','<svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 3 18 15 6 15Z" fill="#201f1d"/></svg>','State high point');
     add('State landmarks','<svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 15 18 3 6 3Z" fill="#201f1d"/></svg>','State low point');
   }
   DATA.filter(d=>state.on[d.id]).forEach(d=>add(
     d.group.replace(/&amp;/g,'&'),
     d.kind==='point'?swatchFor(d):'<svg width="24" height="18" viewBox="0 0 18 18">'+swatchFor(d)+'</svg>',
-    d.label.replace(/&amp;/g,'&')));
+    d.label.replace(/&amp;/g,'&'),
+    'data:'+d.id));
 
   if(!groups.size){ el.style.display='none'; el.innerHTML=''; return; }
   const n=[...groups.values()].reduce((a,r)=>a+r.length,0);
@@ -1528,13 +1549,27 @@ function buildLegend(){
     +'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>'
     +'<div id="lgBody">'
     +[...groups].map(([g,rows])=>
-      '<div class="lg-grp">'+esc(g)+'</div>'
-      +rows.map(r=>'<div class="key">'+r[0]+'<span>'+esc(r[1])+'</span></div>').join('')
+      '<div class="lg-grp">'+esc(g)+rm(groupKey.get(g),g)+'</div>'
+      +rows.map(r=>'<div class="key">'+r[0]+'<span>'+esc(r[1])+'</span>'+rm(r[2],r[1])+'</div>').join('')
     ).join('')+'</div>';
   el.classList.toggle('shut',legendShut);
   document.getElementById('lgHead').addEventListener('click',e=>{
     legendShut=!legendShut; el.classList.toggle('shut',legendShut);
     e.currentTarget.setAttribute('aria-expanded',!legendShut);
+  });
+  /* Firing the rail's own checkbox keeps the switch, the map and the URL in step —
+     the same trick readHash and the marker search use. */
+  document.getElementById('lgBody').addEventListener('click',e=>{
+    const b=e.target.closest('[data-remove]'); if(!b) return;
+    const cb=document.querySelector('[data-layer="'+b.dataset.remove+'"]');
+    if(!cb) return;
+    const name=b.getAttribute('aria-label').replace(/^Remove /,'');
+    cb.checked=false;
+    cb.dispatchEvent(new Event('change'));   // rebuilds this legend, so `b` is gone after
+    announce(name+' removed');
+    /* The rebuild drops focus to <body>; send it somewhere useful — unless that was
+       the last layer, in which case the legend has hidden itself. */
+    document.getElementById('lgHead')?.focus();
   });
   el.style.display='flex';
 }
