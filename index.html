@@ -8,6 +8,16 @@
 <meta property="og:title" content="Keystone Atlas — A Layered Map of Pennsylvania">
 <meta property="og:description" content="Every PHMC historical marker plus forty-odd layers of parks, trails, waterways, boundaries, mine lands and vanished places, drawn over real street geography.">
 <meta property="og:type" content="website">
+<!-- Twitter and some other scrapers demand an absolute og:image URL. Once this
+     has a domain, change this to https://<domain>/assets/og.jpg -->
+<meta property="og:image" content="assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Every Pennsylvania historical marker plotted across the state">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f3f2f2">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/favicon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -31,10 +41,30 @@
   .kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
           color:color-mix(in srgb,var(--color-text) 72%, transparent);font-family:var(--font-body)}
   .kicker.gold{color:var(--color-accent-700)}
+  /* Section headers carry a small flat icon — svgIcon() is for the map and always
+     draws its chip circle, so these are hand-written like the chevrons. */
+  .sec{display:flex;align-items:center;gap:6px}
+  .sec svg{flex:none;opacity:.85}
+  /* The capped #results above guarantees this stays on screen, so it's the visible
+     answer to "are there filters?" without needing to be sticky (which would pin
+     over the results box as you scroll). */
+  #layerHead{border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);
+    background:color-mix(in srgb,var(--color-accent) 5%,transparent)}
   .grp{margin-top:var(--space-3)}
   .grp:first-child{margin-top:0}
   .layer{display:grid;grid-template-columns:14px 24px 1fr;align-items:start;gap:8px;
-         padding:5px 0;cursor:pointer;font-size:13px;line-height:1.3}
+         padding:5px 0;cursor:pointer;font-size:13px;line-height:1.3;position:relative}
+  .layer .i{font-size:10px;margin-left:4px;vertical-align:1px;
+            color:color-mix(in srgb,var(--color-text) 45%,transparent)}
+  .layer:hover .i{color:var(--color-accent-700)}
+  /* Anchored below the row, not beside it — the rail scrolls, so a sideways
+     tooltip would be clipped by its overflow. */
+  .layer .desc{position:absolute;left:0;right:0;top:100%;z-index:900;margin-top:2px;
+    background:var(--color-surface);border:1px solid var(--color-divider);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:8px 10px;
+    font-size:11.5px;line-height:1.45;color:var(--color-text);
+    opacity:0;pointer-events:none;transition:opacity .12s}
+  .layer:hover .desc,.layer:focus-within .desc{opacity:1}
   .layer input{appearance:none;width:14px;height:14px;margin:3px 0 0;border-radius:2px;
                border:1.5px solid var(--color-divider);background:transparent;cursor:pointer}
   .layer:hover input{border-color:var(--color-accent)}
@@ -48,7 +78,21 @@
   .seg{width:100%}
   .seg-opt{flex:1;justify-content:center;text-align:center}
   select.input{appearance:none;background-image:none;width:100%}
-  #results{border-top:1px solid var(--color-divider);flex:none}
+  /* Directly under the search field: results 45 layers down the scroll are results
+     nobody sees. Capped and self-scrolling so 80 hits can't bury the layer list. */
+  /* flex:none matters — in an overflowing flex column a shrinkable item collapses
+     to zero height and its children spill invisibly over the sections below. */
+  #results{flex:none;max-height:min(42vh,400px);overflow-y:auto}
+  .acc-head{display:flex;align-items:center;gap:7px;width:100%;background:none;border:0;cursor:pointer;
+    padding:8px var(--space-4);font-family:var(--font-body);color:var(--color-accent-700);text-align:left;
+    background:color-mix(in srgb,var(--color-accent) 5%,transparent);
+    border-bottom:1px solid var(--color-divider)}
+  .acc-head:hover{background:color-mix(in srgb,var(--color-accent) 11%,transparent)}
+  .acc-head .n{margin-left:auto;font-variant-numeric:tabular-nums;font-size:11px;
+    color:color-mix(in srgb,var(--color-text) 72%,transparent)}
+  .acc-head .chev{transition:transform .15s;flex:none}
+  .acc.shut .acc-head .chev{transform:rotate(-90deg)}
+  .acc.shut .acc-body{display:none}
   .res{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--color-divider);
        padding:9px var(--space-4);cursor:pointer;font-family:var(--font-body);color:inherit}
   .res:hover{background:color-mix(in srgb,var(--color-accent) 8%, transparent)}
@@ -58,8 +102,25 @@
   .res.sel{background:color-mix(in srgb,var(--color-accent) 14%, transparent)}
   #stage{position:relative;min-height:0;overflow:hidden}
   #map{position:absolute;inset:0;background:var(--color-bg);font-family:var(--font-body)}
-  .roads .leaflet-tile-pane{filter:sepia(.42) saturate(.22) contrast(1.02) brightness(1.09);opacity:.82}
-  .terrain .leaflet-tile-pane{filter:sepia(.3) saturate(.3) contrast(1.04) brightness(1.02);opacity:1}
+  /* --wash ramps 1→0 as you zoom in (set by setWash). The sepia hue is held
+     constant so the parchment character never changes; what eases off are the
+     parts that bleach label text — the opacity fade and the brightness lift —
+     while contrast and a little saturation come back. At --wash:1 these compute
+     to exactly the original values. */
+  #map{--wash:1}
+  .leaflet-tile-pane{transition:filter .2s linear,opacity .2s linear}
+  .roads .leaflet-tile-pane{
+    filter:sepia(.42)
+           saturate(calc(.22 + .33*(1 - var(--wash))))
+           contrast(calc(1.02 + .06*(1 - var(--wash))))
+           brightness(calc(1 + .09*var(--wash)));
+    opacity:calc(1 - .18*var(--wash))}
+  .terrain .leaflet-tile-pane{
+    filter:sepia(.3)
+           saturate(calc(.3 + .3*(1 - var(--wash))))
+           contrast(calc(1.04 + .06*(1 - var(--wash))))
+           brightness(calc(1 + .02*var(--wash)));
+    opacity:1}
   .leaflet-container{background:var(--color-bg)}
   .leaflet-control-attribution{background:color-mix(in srgb,var(--color-surface) 82%, transparent)!important;
     font-family:var(--font-body);font-size:11px;color:color-mix(in srgb,var(--color-text) 75%,transparent)}
@@ -174,21 +235,33 @@
     #body{grid-template-columns:1fr}
     #tagline{display:none}
     #footData{display:none}
-    #railHandle{display:flex;align-items:center;justify-content:center;gap:10px;
-      position:fixed;left:0;right:0;bottom:var(--footH,28px);height:48px;z-index:1060;
-      background:var(--color-surface);border:0;border-top:1px solid var(--color-divider);cursor:pointer;
+    :root{--handleH:58px}
+    #railHandle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+      position:fixed;left:0;right:0;bottom:var(--footH,28px);height:var(--handleH);z-index:1060;
+      padding:0;background:var(--color-surface);border:0;border-top:1px solid var(--color-divider);cursor:pointer;
       font-family:var(--font-body);font-size:13px;color:var(--color-accent-700);box-shadow:var(--shadow-md)}
-    #railHandle .grip{width:36px;height:4px;border-radius:2px;
-      background:color-mix(in srgb,var(--color-text) 30%,transparent)}
-    #rail{position:fixed;left:0;right:0;bottom:calc(var(--footH,28px) + 48px);top:auto;z-index:1050;
+    #railHandle .grip{width:40px;height:4px;border-radius:2px;
+      background:color-mix(in srgb,var(--color-text) 34%,transparent)}
+    #railHandle .row{display:flex;align-items:center;gap:7px}
+    #railHandle .chev{transition:transform .25s ease;flex:none}
+    #railHandle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+    #rail{position:fixed;left:0;right:0;bottom:calc(var(--footH,28px) + var(--handleH));top:auto;z-index:1050;
       max-height:62dvh;border-right:0;border-top:1px solid var(--color-divider);
-      box-shadow:var(--shadow-lg);transform:translateY(calc(100% + var(--footH,28px) + 48px));transition:transform .25s ease;
-      visibility:hidden}
+      box-shadow:var(--shadow-lg);transition:transform .25s ease;visibility:hidden;
+      transform:translateY(calc(100% + var(--footH,28px) + var(--handleH)))}
     #rail.open{transform:none;visibility:visible}
-    #panel{width:auto;left:var(--space-2);right:var(--space-2);top:auto;bottom:56px;max-height:52dvh}
-    #legend{width:auto;max-width:min(212px,calc(100vw - 120px));bottom:56px}
-    #tools{bottom:56px}
+    #panel{width:auto;left:var(--space-2);right:var(--space-2);top:auto;max-height:52dvh;
+      bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
+    #legend{width:auto;max-width:min(212px,calc(100vw - 120px));
+      bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
+    #tools{bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
     #foot{padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+    #results{max-height:min(34dvh,300px)}
+    .layer .desc{position:static;opacity:1;background:none;border:0;box-shadow:none;
+      padding:0;margin:2px 0 1px;display:block;font-size:11.5px;line-height:1.4;
+      color:color-mix(in srgb,var(--color-text) 92%,transparent)}
+    .layer .sub{font-size:10.5px;letter-spacing:.02em}
+    .layer .i{display:none}
   }
 </style>
 </head>
@@ -204,10 +277,20 @@
     <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
   </header>
   <div id="body">
-    <button id="railHandle" aria-expanded="false" aria-controls="rail"><span class="grip" aria-hidden="true"></span>Search &amp; layers</button>
+    <button id="railHandle" aria-expanded="false" aria-controls="rail">
+      <span class="grip" aria-hidden="true"></span>
+      <span class="row">
+        <svg class="chev" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+        <span id="railHandleLabel">Search, filters &amp; <span id="layerCount">45</span> layers</span>
+      </span>
+    </button>
     <aside id="rail" aria-label="Search and layers">
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
-        <h2 class="kicker gold">Base</h2>
+        <h2 class="kicker gold sec">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+          Base</h2>
         <div class="seg" id="base" role="radiogroup" aria-label="Base map">
           <label class="seg-opt"><input type="radio" name="base" value="roads" checked class="sr-only">Roads</label>
           <label class="seg-opt"><input type="radio" name="base" value="terrain" class="sr-only">Terrain</label>
@@ -216,7 +299,10 @@
         </div>
       </div>
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
-        <h2 class="kicker gold">Search everything</h2>
+        <h2 class="kicker gold sec">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Search everything</h2>
         <input class="input" id="q" type="search" placeholder="Markers, parks, summits, towns…" autocomplete="off" aria-label="Search markers, layers and places">
         <select class="input" id="county" aria-label="Filter by county"><option value="">All 67 counties</option></select>
         <select class="input" id="type" aria-label="Filter by marker type"><option value="">All marker types</option></select>
@@ -225,8 +311,15 @@
           <input type="range" id="tl" min="0" max="0" step="1" value="0" aria-label="Dedication decade" aria-valuetext="All years">
         </div>
       </div>
-      <div id="panes"><div class="rail-pad" id="layers"></div></div>
       <div id="results"></div>
+      <div class="rail-pad" id="layerHead">
+        <h2 class="kicker gold sec">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
+          Map layers · <span id="layerTotal">45</span>
+        </h2>
+      </div>
+      <div id="panes"><div class="rail-pad" id="layers"></div></div>
     </aside>
     <main id="stage">
       <div id="map" class="roads"></div>
@@ -366,7 +459,7 @@ const DATA=[
   style:{color:'#1e4d33',weight:1.2,dashArray:'4 3',fillColor:'#4a8a5e',fillOpacity:.26},
   name:p=>(p.SF_Name?p.SF_Name+' State Forest':'State forest'),sub2:()=>'Bureau of Forestry',
   rows:p=>[['Acres',acres(p.Acreage)]]},
- {group:'Protected land',id:'wild',label:'Wild &amp; natural areas',sub:'141 designated tracts',
+ {group:'Protected land',id:'wild',desc:'Roadless tracts inside the state forests that DCNR keeps in a natural condition — no timbering, no vehicles.',label:'Wild &amp; natural areas',sub:'141 designated tracts',
   src:'DCNR/MapServer/9',fields:'WnaName,WnaType,SF_Name,Acreage,DESCRIPTIO',simplify:0.0008,kind:'poly',
   style:{color:'#0f3a26',weight:2,dashArray:'7 3 1 3',fill:false},
   name:p=>p.WnaName,sub2:p=>p.WnaType||'Wild area',
@@ -392,7 +485,7 @@ const DATA=[
     SNOWMOBILE:'Snowmobile',OFF_ROAD_M:'Off-road motorcycle',FOUR_WHEEL:'Four-wheel drive'});
     if(yes(p.ADA_ACCESS)) c.push('ADA accessible'); return c;},
   links:p=>[['Trail manager',url(p.MGMT_WEBSI)]]},
- {group:'Water',id:'trout',label:'Stocked trout waters',sub:'1,061 stocked stream reaches',
+ {group:'Water',id:'trout',desc:'Streams the Fish &amp; Boat Commission raises and releases trout into each season — not where trout occur naturally.',label:'Stocked trout waters',sub:'1,061 stocked stream reaches',
   src:'PAFishBoat/MapServer/3',fields:'GNIS_Name,County,Length_MI_,Limits',simplify:0.0006,kind:'line',
   style:{color:'#2f6d8f',weight:1.8},
   name:p=>p.GNIS_Name||'Stocked reach',sub2:()=>'Stocked trout water',
@@ -402,25 +495,25 @@ const DATA=[
   glyph:'anchor',size:16,style:{color:'#1f5878'},
   name:p=>p.ACC_NAME||'Access point',sub2:p=>p.WATERBODY||'Water access',
   rows:p=>[['Water',p.WATERBODY],['County',p.COUNTY],['Township',p.MUNICPAL],['Owner',p.OWNER]]},
- {group:'Curiosities',id:'bridges',label:'Covered bridges',sub:'72 named in the GNIS gazetteer',
+ {group:'Curiosities',id:'bridges',desc:'Pulled out of the gazetteer by name, so these are the named bridges rather than a complete inventory.',label:'Covered bridges',sub:'72 named in the GNIS gazetteer',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_NAME LIKE '%Covered Bridge%'",
   fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS',kind:'point',
   glyph:'bridge',size:19,style:{color:'#8a4b12'},
   name:p=>clean(p.FEATURE_NAME),sub2:()=>'Covered bridge',
   rows:p=>[['County',val(p.COUNTY_NAME)],['Feature class',val(p.FEATURE_CLASS)]]},
- {group:'Curiosities',id:'towers',label:'Fire towers &amp; lookouts',sub:'Standing and historical, from GNIS',
+ {group:'Curiosities',id:'towers',desc:'Pulled out of the gazetteer by name, so these are the named towers and lookouts — standing or gone — not a complete inventory.',label:'Fire towers &amp; lookouts',sub:'Standing and historical, from GNIS',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND (FEATURE_NAME LIKE '%Fire Tower%' OR FEATURE_NAME LIKE '%Firetower%' OR FEATURE_NAME LIKE '%Lookout Tower%')",
   fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT',kind:'point',
   glyph:'tower',size:19,style:{color:'#c07d16'},
   name:p=>clean(p.FEATURE_NAME),sub2:p=>/historical/i.test(p.FEATURE_NAME||'')?'Fire tower (historical)':'Fire tower',
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null]]},
 
- {group:'Protected land',id:'fdist',label:'Forest districts',sub:'20 Bureau of Forestry districts',
+ {group:'Protected land',id:'fdist',desc:'The Bureau of Forestry’s twenty administrative districts, which blanket the whole state, not only forested land.',label:'Forest districts',sub:'20 Bureau of Forestry districts',
   src:'DCNR/MapServer/15',fields:'DistrictNu,DistrictNa,Acreage',simplify:0.002,kind:'poly',
   style:{color:'#24593c',weight:2.2,dashArray:'11 5',fill:false},
   name:p=>(p.DistrictNa||'Forest')+' District',sub2:()=>'Forest district',
   rows:p=>[['District no.',p.DistrictNu],['Acres',acres(p.Acreage)]]},
- {group:'Protected land',id:'wilds',label:'PA Wilds region',sub:'The northern-tier recreation region',
+ {group:'Protected land',id:'wilds',desc:'A twelve-county tourism region promoted by the state — a marketing boundary, not a protected designation.',label:'PA Wilds region',sub:'The northern-tier recreation region',
   src:'DCNR/MapServer/14',fields:'PAWILDS_RE,ACRES',simplify:0.002,kind:'poly',
   style:{color:'#3f6b2f',weight:2.6,dashArray:'12 6',fill:false},
   name:p=>p.PAWILDS_RE||'PA Wilds',sub2:()=>'Recreation region',rows:p=>[['Acres',acres(p.ACRES)]]},
@@ -444,21 +537,21 @@ const DATA=[
     Rock_Climb:'Rock climbing',Scenic_Vie:'Scenic view',Wildlife_W:'Wildlife watching',
     Fitness_Eq:'Fitness equipment',Visitor_Ce:'Visitor center'}),
   links:p=>[['Park website',url(p.URL)]]},
- {group:'Protected land',id:'conserved',label:'Conserved land',sub:'Federal, state, local &amp; private holdings',
+ {group:'Protected land',id:'conserved',desc:'Every kind of land held for conservation — federal, state, county, municipal and private trust — pooled into one inventory.',label:'Conserved land',sub:'Federal, state, local &amp; private holdings',
   srcs:['WeConservePA/MapServer/2','WeConservePA/MapServer/5','WeConservePA/MapServer/3','WeConservePA/MapServer/4'],
   fields:'*',simplify:0.0002,kind:'poly',dynamic:10,
   style:{color:'#2d6b58',weight:1.2,fillColor:'#6db69c',fillOpacity:.34},
   name:p=>p.sitename||'Conserved land',sub2:p=>p.own_type||p.Category||'Conserved land',
   rows:p=>[['Owner',p.loc_own],['Owner type',p.own_type],['Acres',acres(p.acres_gis)],
     ['County',p.county],['Public access',p.pub_access]]},
- {group:'Protected land',id:'easements',label:'Conservation &amp; farm easements',sub:'11,575 eased parcels',
+ {group:'Protected land',id:'easements',desc:'Private land whose development rights were sold or donated: the parcels stay in private hands but cannot be built on.',label:'Conservation &amp; farm easements',sub:'11,575 eased parcels',
   srcs:['WeConservePA/MapServer/0','WeConservePA/MapServer/1'],fields:'*',simplify:0.0002,
   kind:'poly',dynamic:10,
   style:{color:'#7a9448',weight:1.2,dashArray:'3 2',fillColor:'#c3d492',fillOpacity:.42},
   name:p=>p.sitename||p.esmthldr||'Easement',sub2:p=>p.Eval_Cat||'Easement',
   rows:p=>[['Holder',p.esmthldr],['Purpose',p.purpose],['Acres',acres(p.acres_gis)],['County',p.county]]},
 
- {group:'Trails',id:'landtrails',label:'Statewide land trails',sub:'684 trail segments, 2023 inventory',
+ {group:'Trails',id:'landtrails',desc:'The state’s catch-all inventory of land trails, hiking to ATV, which overlaps the named trail layers above.',label:'Statewide land trails',sub:'684 trail segments, 2023 inventory',
   src:'DCNR/MapServer/5',fields:'NAME01,FROM_,TO_,ADA_ACCESS,DESCRIPTIO,MILES,ACCOLADE,WATER_TRAI,RAILINE',simplify:0.0004,kind:'line',
   style:{color:'#d1663c',weight:2.2},
   name:p=>p.NAME01||'Trail',sub2:p=>yes(p.WATER_TRAI)?'Water trail':yes(p.RAILINE)?'Rail trail':'Land trail',
@@ -515,12 +608,12 @@ const DATA=[
   rows:p=>[['Member',[p.S_FIRSTNAM,p.S_LASTNAME].filter(Boolean).join(' ')],['Party',p.PARTY],
     ['Home county',p.HOME_COUNT]]},
 
- {group:'Survey &amp; industry',id:'monuments',label:'NGS survey monuments',sub:'16,198 benchmarks',
+ {group:'Survey &amp; industry',id:'monuments',desc:'Brass disks and markers the National Geodetic Survey set as precise reference points for position and elevation.',label:'NGS survey monuments',sub:'16,198 benchmarks',
   src:'NGS_PA_Monumentation/MapServer/0',fields:'*',kind:'point',dynamic:11,
   glyph:'monument',size:17,style:{color:'#1f1f1f'},
   name:p=>p.NAME||p.PID||'Monument',sub2:()=>'NGS survey monument',
   rows:p=>[['PID',p.PID],['County',p.COUNTY],['Quad',p.QUAD],['Datum date',p.DATA_DATE]]},
- {group:'Survey &amp; industry',id:'wells',label:'Historic oil &amp; gas wells',sub:'30,527 WPA-mapped wells',
+ {group:'Survey &amp; industry',id:'wells',desc:'Wells recorded by a Depression-era WPA survey of the state’s oil and gas fields; many are long gone on the ground.',label:'Historic oil &amp; gas wells',sub:'30,527 WPA-mapped wells',
   src:'PADEP_HistoricOilGasWells/MapServer/0',fields:'TYPE,MAPNAME,COUNTY_NAM,MUNICIPALI,COMMENT',
   kind:'point',dynamic:11,glyph:'well',size:15,style:{color:'#4a4a4a'},
   name:p=>p.TYPE||'Historic well',sub2:()=>'Historic oil or gas well',
@@ -556,7 +649,7 @@ const DATA=[
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
     ['USGS quad',val(p.MAP_NAME)]]},
 
- {group:'Natural landmarks',id:'highpoints',label:'County high points',
+ {group:'Natural landmarks',id:'highpoints',desc:'The highest <i>named</i> summit in each county. A county’s true topographic maximum is often an unnamed rise on a ridge.',label:'County high points',
   sub:'Highest named summit in each county',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Summit' AND ELEV_IN_FT>0",
   fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',
@@ -576,7 +669,7 @@ const DATA=[
     +'topographic high point is often an unnamed rise on a ridge, so treat this as the highest '
     +'place with a name on it rather than the highest ground.'},
 
- {group:'Abandoned mine lands',id:'coal',label:'Coal mining operations',sub:'13,951 permitted sites',
+ {group:'Abandoned mine lands',id:'coal',desc:'Coal operations DEP has permitted — active, inactive and reclaimed sites, not only working mines.',label:'Coal mining operations',sub:'13,951 permitted sites',
   src:'DEP/MapServer/6',fields:'SITE_NAME,ORGANIZATI,PRIMARY__3,SUB_FACI_2,SITE_STATU,OTHER_FACI,COMPLIANCE',
   kind:'point',dynamic:10,glyph:'mine',size:15,style:{color:'#4a2c17'},
   name:p=>val(p.SITE_NAME)||'Coal mining operation',
@@ -584,20 +677,20 @@ const DATA=[
   rows:p=>[['Operator',val(p.ORGANIZATI)],['Permit type',val(p.SUB_FACI_2)],
     ['Status',val(p.SITE_STATU)],['In compliance',val(p.COMPLIANCE)],['Permit no.',val(p.OTHER_FACI)]]},
 
- {group:'Water',id:'histstreams',label:'Historic stream network',sub:'124,183 mapped reaches, 2004 survey',
+ {group:'Water',id:'histstreams',desc:'The 2004 statewide hydrography survey: a snapshot of the stream network as it was mapped then.',label:'Historic stream network',sub:'124,183 mapped reaches, 2004 survey',
   src:'DEP/MapServer/14',fields:'NAME,SHED,STRAHLER,NAMED',simplify:0.0002,kind:'line',dynamic:11,
   style:{color:'#4d8fb0',weight:1.1},
   name:p=>val(p.NAME)||'Unnamed tributary',
   sub2:p=>p.NAMED?'Named stream':'Unnamed tributary',
   rows:p=>[['Watershed',val(p.SHED)],['Strahler order',p.STRAHLER>0?p.STRAHLER:null]]},
 
- {group:'Boundaries',id:'unpaved',label:'Unpaved roads',sub:'19,853 dirt &amp; gravel segments',
+ {group:'Boundaries',id:'unpaved',desc:'Dirt and gravel roads inventoried under the state’s Dirt, Gravel &amp; Low-Volume Road program.',label:'Unpaved roads',sub:'19,853 dirt &amp; gravel segments',
   src:'DEP/MapServer/33',fields:'COUNTY,LENGTH',simplify:0.0002,kind:'line',dynamic:11,
   style:{color:'#8a6a45',weight:1.6,dashArray:'2 3'},
   name:p=>'Unpaved road',sub2:p=>(val(p.COUNTY)||'')+' County',
   rows:p=>[['County',val(p.COUNTY)],['Segment length',p.LENGTH>0?fmt(Math.round(p.LENGTH))+' ft':null]]},
 
- {group:'Hazards',id:'ej',label:'Environmental justice areas',sub:'1,965 DEP-designated block groups, 2023',
+ {group:'Hazards',id:'ej',desc:'Census block groups DEP flags for extra permit scrutiny, based on poverty and minority population thresholds.',label:'Environmental justice areas',sub:'1,965 DEP-designated block groups, 2023',
   src:'DEP/MapServer/12',where:"UPPER(EJAREA)='YES'",
   fields:'EJAREA,COUNTY,GEOID,FINALSCO_1,POVERTY,RACE,POPCHARSSC,POLLUTIO_1,ABANDONE_1,COALMINI_1,FLOODRISKP,ASTHMAPCTI',
   simplify:0.0002,kind:'poly',dynamic:9,
@@ -616,7 +709,7 @@ const DATA=[
     ['Flood risk',pctile(p.FLOODRISKP)],
     ['Asthma rate',pctile(p.ASTHMAPCTI)]]},
 
- {group:'Places &amp; names',id:'gone',label:'Places that are gone',
+ {group:'Places &amp; names',id:'gone',desc:'Features the gazetteer marks (historical). It records no closure date or cause — only the name, location, and when the USGS logged it.',label:'Places that are gone',
   sub:'Everything the gazetteer records as no longer there',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_NAME LIKE '%(historical)%'",
   fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME,DATE_CREATED,DATE_EDITED',kind:'point',
@@ -635,28 +728,28 @@ const DATA=[
     +'account of what happened — only the name, where it stood, and when the USGS logged it. '
     +'The quad sheet below is the map it was drawn on.'},
 
- {group:'Places &amp; names',id:'postoffices',label:'Post offices',sub:'1,648 named · 370 recorded closed',
+ {group:'Places &amp; names',id:'postoffices',desc:'Every post office the gazetteer names, open or closed — a closure often marks a village that has since faded.',label:'Post offices',sub:'1,648 named · 370 recorded closed',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Post Office'",
   fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:8,
   glyph:'mail',size:14,style:{color:'#7a3d6b'},
   name:p=>clean(p.FEATURE_NAME),
   sub2:p=>gone(p)?'Post office · no longer there':'Post office',
   rows:p=>[['County',val(p.COUNTY_NAME)],['USGS quad',val(p.MAP_NAME)]]},
- {group:'Places &amp; names',id:'locales',label:'Locales',sub:'4,764 named spots that are not towns · 170 gone',
+ {group:'Places &amp; names',id:'locales',desc:'The gazetteer’s catch-all for named places that are not towns — crossroads, hollows, landings, mills and the like.',label:'Locales',sub:'4,764 named spots that are not towns · 170 gone',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS='Locale'",
   fields:'FEATURE_NAME,COUNTY_NAME,ELEV_IN_FT,MAP_NAME',kind:'point',dynamic:10,
   glyph:'ruin',size:14,style:{color:'#6b4a2f'},
   name:p=>clean(p.FEATURE_NAME),sub2:p=>gone(p)?'Locale · no longer there':'Locale',
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
     ['USGS quad',val(p.MAP_NAME)]]},
- {group:'Places &amp; names',id:'sacred',label:'Churches &amp; cemeteries',sub:'8,187 named · 71 recorded gone',
+ {group:'Places &amp; names',id:'sacred',desc:'Places the gazetteer files as church or cemetery, including many it records as gone.',label:'Churches &amp; cemeteries',sub:'8,187 named · 71 recorded gone',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Church','Cemetery')",
   fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,MAP_NAME',kind:'point',dynamic:11,
   glyph:'cross',size:14,style:{color:'#5c4a7a'},
   name:p=>clean(p.FEATURE_NAME),
   sub2:p=>(val(p.FEATURE_CLASS)||'Church')+(gone(p)?' · no longer there':''),
   rows:p=>[['County',val(p.COUNTY_NAME)],['USGS quad',val(p.MAP_NAME)]]},
- {group:'Places &amp; names',id:'gnismines',label:'Named mines &amp; tunnels',sub:'295 named · 45 recorded gone',
+ {group:'Places &amp; names',id:'gnismines',desc:'Mines, shafts and tunnels that carry a name in the gazetteer — a small fraction of the state’s actual workings.',label:'Named mines &amp; tunnels',sub:'295 named · 45 recorded gone',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_CLASS IN ('Mine','Tunnel','Oilfield')",
   fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS,ELEV_IN_FT,MAP_NAME',kind:'point',
   glyph:'mine',size:15,style:{color:'#1f1f1f'},
@@ -664,7 +757,7 @@ const DATA=[
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
     ['USGS quad',val(p.MAP_NAME)]]},
 
- {group:'Abandoned mine lands',id:'amlSites',label:'AML problem areas',sub:'22,350 mapped boundaries',
+ {group:'Abandoned mine lands',id:'amlSites',desc:'Abandoned mine lands: the mapped extent of ground damaged by mining that was abandoned before the 1977 federal cleanup law.',label:'AML problem areas',sub:'22,350 mapped boundaries',
   src:'DEP/MapServer/1',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
   simplify:0.00008,kind:'poly',dynamic:11,
   style:{color:'#8c1c13',weight:1.2,fillColor:'#d4746b',fillOpacity:.42},
@@ -673,7 +766,7 @@ const DATA=[
     ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
     ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
     ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
- {group:'Abandoned mine lands',id:'amlPoints',label:'AML inventory points',sub:'13,003 hazards &amp; discharges',
+ {group:'Abandoned mine lands',id:'amlPoints',desc:'The individual hazards inside those areas — open shafts, spoil piles, subsidence and acid mine drainage discharges.',label:'AML inventory points',sub:'13,003 hazards &amp; discharges',
   src:'DEP/MapServer/0',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
   kind:'point',dynamic:11,glyph:'hazard',size:15,style:{color:'#8c1c13'},
   name:p=>val(p.sf_name)||val(p.other_id)||'AML feature',sub2:p=>val(p.sf_type)||'Abandoned mine land',
@@ -681,7 +774,7 @@ const DATA=[
     ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
     ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
     ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
- {group:'Abandoned mine lands',id:'reclaim',label:'Mine drainage &amp; reclamation projects',sub:'233 treatment sites',
+ {group:'Abandoned mine lands',id:'reclaim',desc:'Sites where polluted mine drainage is being treated or abandoned workings restored.',label:'Mine drainage &amp; reclamation projects',sub:'233 treatment sites',
   src:'DEP/MapServer/19',fields:'SITE_NAME,ORGANIZATI,SUB_FACI_2,SITE_STATU,PRIMARY__3,OTHER_FACI',
   kind:'point',glyph:'droplet',size:15,style:{color:'#0f6b52'},
   name:p=>val(p.SITE_NAME)||'Reclamation project',sub2:p=>val(p.SUB_FACI_2)||'Reclamation project',
@@ -689,13 +782,13 @@ const DATA=[
     ['Funding',val(p.PRIMARY__3)&&!/unavailable/i.test(p.PRIMARY__3)?p.PRIMARY__3:null],
     ['Project id',val(p.OTHER_FACI)]]},
 
- {group:'Hazards',id:'flood',label:'FEMA flood hazard',sub:'National Flood Hazard Layer · from zoom 9',
+ {group:'Hazards',id:'flood',desc:'FEMA’s official flood insurance map — the 100- and 500-year floodplains used for insurance and building rules.',label:'FEMA flood hazard',sub:'National Flood Hazard Layer · from zoom 9',
   src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}},
 
- {group:'Map styles',id:'histtopo',label:'USGS topo quads',sub:'Scanned USGS topographic quads · Esri',
+ {group:'Map styles',id:'histtopo',desc:'Scanned USGS topographic quadrangles: the classic contour sheets, good for seeing the ground before modern development.',label:'USGS topo quads',sub:'Scanned USGS topographic quads · Esri',
   kind:'raster',tileUrl:'https://server.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}',
   opacity:.75,maxNativeZoom:15,attribution:'USGS topo: Esri, USGS',style:{color:'#7a6a4f'}},
- {group:'Map styles',id:'orm',label:'Railways',sub:'Active & abandoned lines · OpenRailwayMap',
+ {group:'Map styles',id:'orm',desc:'Rail lines drawn from OpenStreetMap, including yards, sidings and abandoned grades.',label:'Railways',sub:'Active & abandoned lines · OpenRailwayMap',
   kind:'raster',tileUrl:'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
   opacity:.9,attribution:'© OpenRailwayMap (CC-BY-SA)',style:{color:'#b04a3a'}}
 ];
@@ -717,14 +810,19 @@ const state={markers:[],feats:[],byCounty:{},filtered:[],sel:null,
 
 const map=L.map('map',{preferCanvas:true,minZoom:6,maxZoom:18,zoomSnap:.5});
 map.setView([40.9,-77.7],7.5);
-const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
+/* On a HiDPI screen Leaflet upscales 256px tiles and labels go soft; detectRetina
+   pulls the next zoom level and draws it at half size, which sharpens them. The
+   cost is four tile requests where there was one — set this to false if OSM's
+   community tile server ever objects to the traffic. */
+const RETINA_TILES=true;
+const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,detectRetina:RETINA_TILES,
   attribution:'© OpenStreetMap contributors · Markers: PHMC · Layers: PASDA / Penn State · Boundaries: U.S. Census'});
 /* Esri's global hillshade, drawn under the road tiles so terrain reads as relief
    beneath the streets rather than replacing them. */
 const hill=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:16,maxNativeZoom:16,attribution:'Hillshade: Esri, USGS'});
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {maxZoom:19,attribution:'Imagery: Esri, Maxar, Earthstar Geographics'});
+  {maxZoom:19,detectRetina:RETINA_TILES,attribution:'Imagery: Esri, Maxar, Earthstar Geographics'});
 tiles.addTo(map);
 function setBase(name){
   const mapEl=document.getElementById('map');
@@ -1017,8 +1115,11 @@ async function boot(){
     const up=d.kind==='high';
     const html=`<svg width="16" height="15" viewBox="0 0 16 15" aria-hidden="true">
       <path d="${up?'M8 1 L15 14 L1 14 Z':'M8 14 L15 1 L1 1 Z'}" fill="${INK}" stroke="${PAPER}" stroke-width="1.2"/></svg>`;
-    const mk=L.marker([d.lat,d.lon],{pane:'pPeak',
+    /* Leaflet gives divIcons role="button" + tabindex, so they need a name of
+       their own — the glyph inside is aria-hidden. */
+    const mk=L.marker([d.lat,d.lon],{pane:'pPeak',alt:`${d.name} · ${d.elev}`,
       icon:L.divIcon({className:'peakIcon',html,iconSize:[16,15],iconAnchor:[8,up?14:1]})});
+    mk.on('add',e=>e.target.getElement()?.setAttribute('aria-label',`${d.name} · ${d.elev}`));
     mk.bindTooltip(`${d.name} · ${d.elev}`,{direction:'top'});
     mk.on('click',()=>showLandmark(d));
     peakLayer.addLayer(mk);
@@ -1084,17 +1185,24 @@ function swatchFor(d){
 
 function buildRail(){
   const el=document.getElementById('layers');
-  const row=(id,label,sub,swatch,checked)=>`<label class="layer">
-      <input type="checkbox" data-layer="${id}" ${checked?'checked':''}>
+  /* `desc` explains what a layer is; `sub` is metadata and gets overwritten with
+     feature counts once the layer loads, so the two cannot share a span. */
+  const row=(id,label,sub,swatch,checked,desc)=>{
+    const dId='d-'+id.replace(':','-');
+    return `<label class="layer${desc?' has-desc':''}">
+      <input type="checkbox" data-layer="${id}" ${checked?'checked':''} ${desc?`aria-describedby="${dId}"`:''}>
       ${swatch.startsWith('<svg')?swatch:`<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">${swatch}</svg>`}
-      <div>${label}<span class="sub">${sub}</span></div></label>`;
+      <div>${label}${desc?'<span class="i" aria-hidden="true">ⓘ</span>':''}
+        ${desc?`<span class="desc" id="${dId}">${desc}</span>`:''}
+        <span class="sub">${sub}</span></div></label>`;
+  };
   let html=`<div class="grp"><h2 class="kicker gold">The base map</h2>`
-    +BASE_DEFS.map(l=>row(l.id,l.label,l.sub,l.swatch,state.layers[l.id])).join('')+`</div>`;
+    +BASE_DEFS.map(l=>row(l.id,l.label,l.sub,l.swatch,state.layers[l.id],l.desc)).join('')+`</div>`;
   const groups=[...new Set(DATA.map(d=>d.group))];
   groups.forEach(g=>{
     html+=`<div class="grp"><h2 class="kicker gold">${g}</h2>`
       +DATA.filter(d=>d.group===g).map(d=>row('data:'+d.id,d.label,
-        d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false)).join('')+`</div>`;
+        d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false,d.desc)).join('')+`</div>`;
   });
   el.innerHTML=html;
   el.querySelectorAll('input').forEach(i=>i.addEventListener('change',e=>{
@@ -1143,16 +1251,54 @@ function applyFilters(){
   renderResults();
 }
 
+/* With nothing searched or filtered, the results pane would sit empty — so give
+   it today's anniversaries instead of a hint nobody needs twice. */
+function onThisDay(){
+  const now=new Date();
+  const key=String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  return {key,label:MONTHS[now.getMonth()]+' '+now.getDate(),
+    markers:state.markers.filter(m=>m.d===key).sort((a,b)=>a.y-b.y)};
+}
+const CHEV='<svg class="chev" aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none"'
+  +' stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+const CAL='<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+  +' stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/>'
+  +'<path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+let otdShut=true;   /* collapsed until asked for — the map is the point */
+function renderIdle(box){
+  const t=onThisDay();
+  if(!t.markers.length){
+    box.innerHTML='<div class="rail-pad kicker">Search a name, or pick a county, to list what is here</div>';
+    return;
+  }
+  const show=t.markers.slice(0,12);
+  box.innerHTML='<div class="acc'+(otdShut?' shut':'')+'">'
+    +'<button class="acc-head" aria-expanded="'+(!otdShut)+'" aria-controls="otdBody">'
+      +CAL+'<span class="kicker gold">On this day · '+esc(t.label)+'</span>'
+      +'<span class="n">'+t.markers.length+'</span>'+CHEV+'</button>'
+    +'<div class="acc-body" id="otdBody">'
+    +show.map((m,i)=>'<button class="res" data-i="'+i+'"><b>'+esc(m.n)+'</b>'
+      +'<span>dedicated '+m.y+' · '+esc(m.c)+' County</span></button>').join('')
+    +(t.markers.length>show.length
+      ?'<div class="rail-pad kicker">'+show.length+' of '+t.markers.length+' shown</div>':'')
+    +'</div></div>';
+  const acc=box.querySelector('.acc');
+  acc.querySelector('.acc-head').addEventListener('click',e=>{
+    otdShut=!otdShut;
+    acc.classList.toggle('shut',otdShut);
+    e.currentTarget.setAttribute('aria-expanded',!otdShut);
+  });
+  box.querySelectorAll('.res').forEach(b=>
+    b.addEventListener('click',()=>select(show[+b.dataset.i],true)));
+}
+
 /* ── search across markers, every loaded layer, and the gazetteer ── */
 let searchSeq=0;
 function renderResults(){
   const box=document.getElementById('results');
   const q=document.getElementById('q').value.trim();
   const co=document.getElementById('county').value, ty=document.getElementById('type').value;
-  if(!q&&!co&&!ty&&!state.decade&&!state.sel){
-    box.innerHTML='<div class="rail-pad kicker">Search a name, or pick a county, to list what is here</div>';
-    return;
-  }
+  if(!q&&!co&&!ty&&!state.decade&&!state.sel) return renderIdle(box);
   const ql=q.toLowerCase();
   const groups=[];
 
@@ -1235,6 +1381,10 @@ async function searchGazetteer(){
 /* ── detail panel ────────────────────────────────────────── */
 function openPanel(html){document.getElementById('panelBody').innerHTML=html;
   document.getElementById('panel').classList.add('open')}
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  state.sel=null; applyFilters(); writeHash();
+}
 
 function select(m,fly){
   state.sel=m;
@@ -1245,7 +1395,7 @@ function select(m,fly){
     syncLayers();
   }
   openPanel(`
-    <div class="kicker gold">${esc(m.t)} marker${m.y?' · dedicated '+m.y:''}</div>
+    <div class="kicker gold">${esc(m.t)} marker${m.y?' · dedicated '+dedicated(m):''}</div>
     <h2>${esc(m.n)}</h2>
     <div class="loc">${esc(m.c)} County — ${esc(m.l)||'location not recorded'}</div>
     <hr class="hr" style="margin:var(--space-3) 0">
@@ -1261,7 +1411,17 @@ function select(m,fly){
       <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?SearchFor=${encodeURIComponent(m.n)}&State=Pennsylvania" target="_blank" rel="noopener" style="border-bottom:0">HMdb</a>
     </div>`);
   applyFilters();
+  writeHash(true);   /* its own history entry, so Back returns to the map */
   if(fly) map.flyTo([m.lat,m.lon],15,{duration:.9});
+}
+
+/* The PHMC export carries a full date for most markers; the rest have only a year. */
+const MONTHS=['January','February','March','April','May','June',
+  'July','August','September','October','November','December'];
+function dedicated(m){
+  if(!m.d) return String(m.y);
+  const [mo,da]=m.d.split('-').map(Number);
+  return MONTHS[mo-1]+' '+da+', '+m.y;
 }
 
 /* The gazetteer records no history, but a PHMC marker standing nearby often does —
@@ -1374,20 +1534,26 @@ function setDecade(i){
   applyFilters(); writeHash();
 }
 
+/* #zoom/lat/lng/base/layer.ids[/dDECADE][/mPHMCID] — the trailing segments are
+   prefix-tagged, so they parse in any order and older links still open. */
 let hashLock=false;
-function writeHash(){
+function writeHash(push){
   if(hashLock||!state.feats.length) return;
   const c=map.getCenter();
   const on=DATA.filter(d=>state.on[d.id]).map(d=>d.id);
   const base=document.querySelector('#base input:checked').value;
   const bits=[map.getZoom(),c.lat.toFixed(4),c.lng.toFixed(4),base,on.join('.')];
   if(state.decade) bits.push('d'+state.decade);
-  history.replaceState(null,'','#'+bits.join('/'));
+  if(state.sel&&state.sel.id) bits.push('m'+state.sel.id);
+  const url='#'+bits.join('/');
+  if(url===location.hash) return;
+  history[push?'pushState':'replaceState'](null,'',url);
 }
 function readHash(){
   const raw=location.hash.replace(/^#/,'');
   if(!raw) return false;
-  const [z,lat,lon,base,layers,extra]=raw.split('/');
+  const parts=raw.split('/');
+  const [z,lat,lon,base,layers]=parts;
   if(!isFinite(+z)||!isFinite(+lat)) return false;
   hashLock=true;
   const r=document.querySelector('#base input[value="'+(base||'roads')+'"]');
@@ -1397,13 +1563,21 @@ function readHash(){
     const cb=document.querySelector('[data-layer="data:'+id+'"]');
     if(cb&&!cb.checked){ cb.checked=true; cb.dispatchEvent(new Event('change')); }
   });
-  if(extra&&extra[0]==='d'){
-    const i=DECADES.indexOf(+extra.slice(1));
+  const tags=parts.slice(5);
+  const dec=tags.find(t=>t[0]==='d');
+  if(dec){
+    const i=DECADES.indexOf(+dec.slice(1));
     if(i>=0){ document.getElementById('tl').value=i+1; setDecade(i+1); }
   }
+  const sel=tags.find(t=>t[0]==='m');
+  const m=sel&&state.markers.find(x=>x.id===sel.slice(1));
+  if(m) select(m); else closePanel();
   hashLock=false;
   return true;
 }
+/* Back/forward replays whatever the hash says, so it steps through selections
+   rather than dropping the visitor off the site. */
+addEventListener('popstate',()=>{ if(!hashLock) readHash(); });
 
 /* Click to drop points, double-click or Esc to finish. */
 const measure={on:false,pts:[],line:null,dots:[],label:null};
@@ -1483,9 +1657,14 @@ if(!localStorage.getItem('aboutSeen')){ aboutSet(true); localStorage.setItem('ab
 
 /* ── mobile drawer + resize ───────────────── */
 const railEl=document.getElementById('rail'), railHandle=document.getElementById('railHandle');
+const railLabel=document.getElementById('railHandleLabel');
+document.getElementById('layerCount').textContent=DATA.length;
+document.getElementById('layerTotal').textContent=DATA.length;
+const railLabelShut=railLabel.innerHTML;
 function railSet(on){
   railEl.classList.toggle('open',on);
   railHandle.setAttribute('aria-expanded',on);
+  if(on) railLabel.textContent='Close'; else railLabel.innerHTML=railLabelShut;
 }
 railHandle.addEventListener('click',()=>railSet(!railEl.classList.contains('open')));
 document.getElementById('results').addEventListener('click',e=>{
@@ -1506,22 +1685,36 @@ document.getElementById('county').addEventListener('change',e=>{
   else map.fitBounds(countyLayer.getBounds(),{padding:[10,10]});
 });
 document.querySelectorAll('#base input').forEach(r=>r.addEventListener('change',e=>setBase(e.target.value)));
-document.getElementById('close').addEventListener('click',()=>{
-  document.getElementById('panel').classList.remove('open');state.sel=null;applyFilters();
-});
+document.getElementById('close').addEventListener('click',closePanel);
+/* The parchment wash is what makes the state-level view; at street level it is
+   just fog over the town names. Full through the county view, gone by the time
+   streets are the point. */
+function setWash(){
+  const z=map.getZoom();
+  const w=z<=10?1:z>=14?0:(14-z)/4;
+  document.getElementById('map').style.setProperty('--wash',w.toFixed(3));
+}
+setWash();
 map.on('zoomend',()=>{
   toggle(labLayer,state.layers.labels&&map.getZoom()>=7);
   iconZoom();
+  setWash();
   const z=map.getZoom(), r=z<8?3:z<10?4.2:z<12?5.5:7;
   mkRefs.forEach(c=>{if(state.sel!==c._m)c.setRadius(r)});
   document.querySelectorAll('.clabel').forEach(e=>e.style.fontSize=(z<8?11:z<10?13:15)+'px');
 });
+/* Refetching viewport layers on every settle would fire a burst of PASDA
+   requests across a drag; wait for the pan to actually stop. */
+let panTimer=null;
 map.on('moveend',()=>{
   writeHash();
-  DATA.filter(d=>d.dynamic&&state.on[d.id]).forEach(d=>{
-    const cb=document.querySelector(`[data-layer="data:${d.id}"]`);
-    if(cb) loadDynamic(d,cb.closest('.layer'));
-  });
+  clearTimeout(panTimer);
+  panTimer=setTimeout(()=>{
+    DATA.filter(d=>d.dynamic&&state.on[d.id]).forEach(d=>{
+      const cb=document.querySelector(`[data-layer="data:${d.id}"]`);
+      if(cb) loadDynamic(d,cb.closest('.layer'));
+    });
+  },350);
 });
 boot();
 </script>

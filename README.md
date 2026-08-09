@@ -30,10 +30,11 @@ ExplorePAhistory and HMdb.
 | Hazards | FEMA flood hazard, environmental justice areas |
 
 **Tools** — search across markers, every loaded layer and the USGS gazetteer at
-once; filter by county, marker type and dedication decade; three base maps
-(roads, terrain hillshade, plain paper); a distance measure; a collapsible
-legend; and a shareable URL that encodes the view, the active layers and the
-decade.
+once; filter by county, marker type and dedication decade; four base maps
+(roads, terrain hillshade, plain paper, satellite); a distance measure; a
+collapsible legend; and a shareable URL that encodes the view, the active
+layers, the decade and the selected marker. With nothing searched, the results
+pane lists the markers dedicated on today's date.
 
 ## Data sources
 
@@ -45,6 +46,13 @@ decade.
   topo quads via Esri; **OpenRailwayMap** railway overlay (CC-BY-SA).
 - `data/phmc-historical-markers.csv` — the PHMC marker export this was built from.
 - `data/markers.json` — the parsed, coordinate-checked markers the page loads.
+
+`markers.json` was merged from the CSV **and** the live PHMC map service, so it
+is not reproducible from the CSV alone — don't regenerate it from scratch.
+`tools/add-dedication-dates.mjs` augments it in place, copying the month and day
+of each dedication across from the CSV (`node tools/add-dedication-dates.mjs`;
+idempotent, leaves unmatched records untouched). 165 markers carry a `01/01`
+date in the CSV as a stand-in for "day unknown"; those are kept as year-only.
 
 ## Notes on the data
 
@@ -70,8 +78,21 @@ Some honesty about what the sources do and don't support:
 index.html                        the whole application
 data/markers.json                 parsed PHMC markers
 data/phmc-historical-markers.csv  the source export
+tools/add-dedication-dates.mjs    copies dedication month/day into markers.json
 assets/styles.css                 Classical design system (tokens + stylesheet)
+assets/favicon.svg                tab icon (+ favicon-180.png for iOS)
+assets/og.jpg                     1200×630 social preview card
 ```
+
+## Before going live
+
+- Replace `ko-fi.com/CHANGEME` with a real donation link (two spots in
+  `index.html`, one below).
+- Make `og:image` absolute — `https://<domain>/assets/og.jpg`. Twitter and some
+  other scrapers ignore relative image paths.
+- Street tiles come from OpenStreetMap's community tile server, and the railway
+  overlay from OpenRailwayMap's. Both are fine for modest traffic; move to a
+  provider with a usage allowance (MapTiler, Stadia) if the site gets popular.
 
 ## Disclaimer & support
 
