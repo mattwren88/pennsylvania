@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Keystone Atlas — A Layered Map of Pennsylvania</title>
-<meta name="description" content="An independent, layered map of Pennsylvania: every PHMC historical marker plus forty-odd layers of parks, trails, waterways, boundaries, mine lands and vanished places.">
+<meta name="description" content="An independent, layered map of Pennsylvania: every PHMC historical marker plus seventy layers of parks, trails, waterways, boundaries, geology, mine workings and vanished places.">
 <meta property="og:title" content="Keystone Atlas — A Layered Map of Pennsylvania">
-<meta property="og:description" content="Every PHMC historical marker plus forty-odd layers of parks, trails, waterways, boundaries, mine lands and vanished places, drawn over real street geography.">
+<meta property="og:description" content="Every PHMC historical marker plus seventy layers of parks, trails, waterways, boundaries, geology, mine workings and vanished places, drawn over real street geography.">
 <meta property="og:type" content="website">
 <!-- Twitter and some other scrapers demand an absolute og:image URL. Once this
      has a domain, change this to https://<domain>/assets/og.jpg -->
@@ -33,8 +33,9 @@
   a:hover{color:var(--color-accent);border-bottom-color:var(--color-accent)}
   #app{height:100vh;display:grid;grid-template-rows:auto 1fr auto}
   #body{display:grid;grid-template-columns:344px 1fr;min-height:0}
+  /* The scroller is #rail > .sheet-body, so a bottom sheet can pin its grab
+     header while the content scrolls beneath it. */
   #rail{border-right:1px solid var(--color-divider);display:flex;flex-direction:column;min-height:0;
-        overflow-y:auto;
         background:color-mix(in srgb, var(--color-surface) 60%, var(--color-bg))}
   .rail-pad{padding:var(--space-3) var(--space-4)}
   #panes{flex:none}
@@ -75,8 +76,11 @@
               color:color-mix(in srgb,var(--color-text) 72%, transparent)}
   .layer.busy .sub::after{content:' · loading…';color:var(--color-accent-700)}
   .layer.fail .sub::after{content:' · could not load';color:var(--color-accent-800)}
-  .seg{width:100%}
-  .seg-opt{flex:1;justify-content:center;text-align:center}
+  /* The four base maps are one-of-four; everything else is a free toggle. Round
+     versus square is the only thing telling you which you are looking at. */
+  .layer input[type=radio]{border-radius:50%}
+  .layer input[type=radio]:checked{box-shadow:inset 0 0 0 2.5px var(--color-bg)}
+  .grp-split{height:1px;background:var(--color-divider);margin:7px 0 3px}
   select.input{appearance:none;background-image:none;width:100%}
   /* Directly under the search field: results 45 layers down the scroll are results
      nobody sees. Capped and self-scrolling so 80 hits can't bury the layer list. */
@@ -233,7 +237,23 @@
     padding:10px 16px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);transition:top .15s}
   .sr-skip:focus{top:8px}
   h2.kicker{margin:0;font-weight:inherit}
-  #railHandle{display:none}
+  /* ── bottom sheets ──────────────────────────────────────────────────────
+     One draggable component, two instances: the filter rail and the detail
+     panel. Off mobile it is inert — the grab header is hidden and both keep
+     their desktop layout. .sheet-body is the scroller in both places, so the
+     grab header stays put while the content moves under it. */
+  .sheet-grab{display:none}
+  #rail .sheet-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
+  #scrim{position:fixed;inset:0;z-index:1040;background:color-mix(in srgb,var(--color-neutral-900) 55%,transparent);
+    opacity:0;pointer-events:none;transition:opacity .3s}
+  #scrim.on{pointer-events:auto}
+  /* Below ~380px even the trimmed one-line footer overruns and clips the support
+     link, so the disclaimer drops to its short form rather than the type shrinking. */
+  .foot-alt .narrow{display:none}
+  @media (max-width:380px){
+    .foot-alt .wide{display:none}
+    .foot-alt .narrow{display:inline}
+  }
   @media (pointer:coarse){
     #tools button,#about,#footAbout,.btn{min-height:44px}
     #close,#aboutClose{padding:12px 14px}
@@ -245,28 +265,65 @@
     #app{height:100vh;height:100dvh}
     #body{grid-template-columns:1fr}
     #tagline{display:none}
-    #footData{display:none}
-    :root{--handleH:58px}
-    #railHandle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-      position:fixed;left:0;right:0;bottom:var(--footH,28px);height:var(--handleH);z-index:1060;
-      padding:0;background:var(--color-surface);border:0;border-top:1px solid var(--color-divider);cursor:pointer;
-      font-family:var(--font-body);font-size:13px;color:var(--color-accent-700);box-shadow:var(--shadow-md)}
-    #railHandle .grip{width:40px;height:4px;border-radius:2px;
-      background:color-mix(in srgb,var(--color-text) 34%,transparent)}
-    #railHandle .row{display:flex;align-items:center;gap:7px}
-    #railHandle .chev{transition:transform .25s ease;flex:none}
-    #railHandle[aria-expanded="true"] .chev{transform:rotate(180deg)}
-    #rail{position:fixed;left:0;right:0;bottom:calc(var(--footH,28px) + var(--handleH));top:auto;z-index:1050;
-      max-height:62dvh;border-right:0;border-top:1px solid var(--color-divider);
-      box-shadow:var(--shadow-lg);transition:transform .25s ease;visibility:hidden;
-      transform:translateY(calc(100% + var(--footH,28px) + var(--handleH)))}
-    #rail.open{transform:none;visibility:visible}
-    #panel{width:auto;left:var(--space-2);right:var(--space-2);top:auto;max-height:52dvh;
-      bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
-    #legend{width:auto;max-width:min(228px,calc(100vw - 120px));
-      bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
-    #tools{bottom:calc(var(--footH,28px) + var(--handleH) + 8px)}
-    #foot{padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+    #footData,#footDataDot{display:none}
+    /* --snap is how many pixels of the sheet are showing; JS drives it, and the
+       transform is the only thing that animates — the old drawer toggled
+       visibility alongside it, which made every close snap invisible instead of
+       sliding. --peekH is measured off the grab header at runtime.
+       Selected by id as well as class: both hosts carry id-level desktop rules
+       for position, size, padding and display that a bare .sheet cannot outrank. */
+    #rail.sheet,#panel.sheet{position:fixed;left:0;right:0;top:auto;bottom:var(--footH,28px);
+      z-index:1050;height:88dvh;width:auto;max-height:none;padding:0;overflow:visible;
+      display:flex;flex-direction:column;
+      background:var(--color-surface);border:0;border-top:1px solid var(--color-divider);
+      border-radius:16px 16px 0 0;box-shadow:var(--shadow-lg);
+      transform:translateY(calc(100% - var(--snap,0px)));
+      transition:transform .34s cubic-bezier(.32,.72,0,1)}
+    #rail.sheet.dragging,#panel.sheet.dragging{transition:none}
+    @media (prefers-reduced-motion:reduce){
+      #rail.sheet,#panel.sheet{transition:none}
+      #scrim{transition:none}
+    }
+    /* The rail rests at peek and so must clear the footer; the detail sheet rests
+       closed and has to leave the viewport entirely, which anchoring above the
+       footer would not do — translateY(100%) would still leave its grab header
+       sitting over the footer strip. Raised, it simply covers the footer. */
+    #panel.sheet{bottom:0}
+    #panel.sheet .sheet-body{flex:1;min-height:0;overflow-y:auto;
+      padding:0 var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom,0px))}
+    #rail .sheet-body{padding-bottom:env(safe-area-inset-bottom,0px)}
+    .sheet .sheet-body{overscroll-behavior:contain;touch-action:pan-y}
+    /* The whole header is the drag surface, so the grip finally does what it
+       has always looked like it does. touch-action:none stops the browser
+       claiming the gesture as a scroll before the pointer handler sees it. */
+    .sheet-grab{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;
+      padding:9px 40px 8px;touch-action:none;cursor:grab;
+      user-select:none;-webkit-user-select:none}
+    .sheet.dragging .sheet-grab{cursor:grabbing}
+    .sheet-grab .grip{width:40px;height:4px;border-radius:2px;flex:none;
+      background:color-mix(in srgb,var(--color-text) 30%,transparent)}
+    .sheet-toggle{display:flex;align-items:center;gap:7px;max-width:100%;
+      background:none;border:0;padding:0;cursor:pointer;font-family:var(--font-body);
+      font-size:13px;line-height:1.3;color:var(--color-accent-700)}
+    .sheet-toggle .chev{transition:transform .25s ease;flex:none}
+    .sheet.up .sheet-toggle .chev{transform:rotate(180deg)}
+    /* The grab header's title IS the panel heading on mobile — openPanel copies
+       the body's h2 into it, so that h2 is hidden rather than shown twice. Two
+       lines are allowed: only the rail's grab height feeds --peekH, so a long
+       marker name growing this header costs nothing. */
+    .sheet-title{font-family:var(--font-heading);font-weight:600;font-size:18px;
+      line-height:1.18;text-align:center;text-wrap:balance;color:var(--color-text);
+      display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+    #panel.sheet #panelBody h2{display:none}
+    #panel.sheet #close{top:6px;right:6px}
+    #legend{width:auto;max-width:min(228px,calc(100vw - 120px))}
+    #legend,#tools{bottom:calc(var(--footH,28px) + var(--peekH,58px) + 8px)}
+    /* One line, no wrapping: the footer's height feeds --footH, which every
+       bottom-anchored element is positioned off. Wrapping silently shoved the
+       lot upward. The credits and the affiliation notice live in About. */
+    #foot{flex-wrap:nowrap;white-space:nowrap;overflow:hidden;
+      padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+    #footAff,#footAffDot{display:none}
     #results{max-height:min(34dvh,300px)}
     .layer .desc{position:static;opacity:1;background:none;border:0;box-shadow:none;
       padding:0;margin:2px 0 1px;display:block;font-size:11.5px;line-height:1.4;
@@ -288,27 +345,16 @@
     <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
   </header>
   <div id="body">
-    <button id="railHandle" aria-expanded="false" aria-controls="rail">
-      <span class="grip" aria-hidden="true"></span>
-      <span class="row">
-        <svg class="chev" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-        <span id="railHandleLabel">Search, filters &amp; <span id="layerCount">45</span> layers</span>
-      </span>
-    </button>
-    <aside id="rail" aria-label="Search and layers">
-      <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
-        <h2 class="kicker gold sec">
-          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
-          Base</h2>
-        <div class="seg" id="base" role="radiogroup" aria-label="Base map">
-          <label class="seg-opt"><input type="radio" name="base" value="roads" checked class="sr-only">Roads</label>
-          <label class="seg-opt"><input type="radio" name="base" value="terrain" class="sr-only">Terrain</label>
-          <label class="seg-opt"><input type="radio" name="base" value="paper" class="sr-only">Paper</label>
-          <label class="seg-opt"><input type="radio" name="base" value="sat" class="sr-only">Sat</label>
-        </div>
+    <aside id="rail" class="sheet" aria-label="Search and layers">
+      <div class="sheet-grab" id="railGrab">
+        <span class="grip" aria-hidden="true"></span>
+        <button class="sheet-toggle" id="railHandle" aria-expanded="false" aria-controls="railBody">
+          <svg class="chev" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          <span id="railHandleLabel">Search, filters &amp; <span id="layerCount">70</span> layers</span>
+        </button>
       </div>
+      <div class="sheet-body" id="railBody">
       <div class="rail-pad" style="border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:8px">
         <h2 class="kicker gold sec">
           <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -327,10 +373,11 @@
         <h2 class="kicker gold sec">
           <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
-          Map layers · <span id="layerTotal">45</span>
+          Map layers · <span id="layerTotal">70</span>
         </h2>
       </div>
       <div id="panes"><div class="rail-pad" id="layers"></div></div>
+      </div>
     </aside>
     <main id="stage">
       <div id="map" class="roads"></div>
@@ -339,48 +386,62 @@
         <button class="btn btn-secondary" id="measure" title="Measure a distance">Measure</button>
         <button class="btn btn-secondary" id="share" title="Copy a link to this view">Copy link</button>
       </div>
-      <div id="panel"><button id="close" aria-label="Close"><span aria-hidden="true">×</span></button><div id="panelBody"></div></div>
+      <div id="panel" class="sheet">
+        <div class="sheet-grab" id="panelGrab">
+          <span class="grip" aria-hidden="true"></span>
+          <span class="sheet-title" id="panelPeek"></span>
+        </div>
+        <button id="close" aria-label="Close"><span aria-hidden="true">×</span></button>
+        <div id="panelBody" class="sheet-body"></div>
+      </div>
       <div id="loading">Drawing the Commonwealth…</div>
     </main>
   </div>
   <footer id="foot">
-    <span>Not affiliated with the Commonwealth of Pennsylvania or the PHMC</span>
-    <span class="dot" aria-hidden="true">·</span>
+    <span id="footAff">Not affiliated with the Commonwealth of Pennsylvania or the PHMC</span>
+    <span class="dot" id="footAffDot" aria-hidden="true">·</span>
     <span id="footData">Data: PASDA · PHMC · U.S. Census · OpenStreetMap</span>
-    <span class="dot" aria-hidden="true">·</span>
-    <span>Provided as-is; not for navigation</span>
+    <span class="dot" id="footDataDot" aria-hidden="true">·</span>
+    <span class="foot-alt"><span class="wide">Provided as-is; not for navigation</span><span class="narrow">Not for navigation</span></span>
     <span class="dot" aria-hidden="true">·</span>
     <button id="footAbout">About</button>
     <span class="dot" aria-hidden="true">·</span>
     <a href="https://ko-fi.com/CHANGEME" target="_blank" rel="noopener"><span aria-hidden="true">☕</span> Support this map</a>
   </footer>
 </div>
+<div id="scrim"></div>
 <div id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
   <div id="aboutCard">
     <button id="aboutClose" aria-label="Close"><span aria-hidden="true">×</span></button>
     <div class="kicker gold">Keystone Atlas</div>
     <h2 id="aboutTitle">A layered map of Pennsylvania</h2>
     <p>Every Pennsylvania historical marker with a known location — 2,585 of them, merged from the
-      PHMC's export and its live map service — plus forty-odd layers of parks, trails, waterways,
-      boundaries, abandoned mine lands, natural landmarks and vanished places, drawn over real
+      PHMC's export and its live map service — plus seventy layers of parks, trails, waterways,
+      boundaries, geology, mine workings, natural landmarks and vanished places, drawn over real
       street geography.</p>
     <h3>How to use it</h3>
     <ul>
       <li><b>Search everything</b> — markers, every loaded layer and the USGS gazetteer at once.</li>
+      <li><b>Map style</b> heads the layer list: pick one of four sheets to draw on — roads, terrain,
+        plain paper or satellite — and stack the topo quads and railways over it.</li>
       <li><b>Layers</b> load the first time you tick them; large ones fetch only what the viewport covers.</li>
       <li><b>Filter</b> markers by county, type, and dedication decade.</li>
+      <li><b>Measure</b> draws a running distance along as many points as you click.</li>
       <li><b>Copy link</b> captures the view, base map, active layers and decade in a shareable URL.</li>
     </ul>
     <h3>Data sources &amp; credits</h3>
     <p>Live layers come from <a href="https://www.pasda.psu.edu/" target="_blank" rel="noopener">PASDA</a>
-      (Pennsylvania Spatial Data Access, Penn State), whose underlying agencies include the PHMC, DCNR,
-      PennDOT, DEP, the Fish &amp; Boat and Game Commissions, WeConservePA, FEMA and NGS. County geometry
+      (Pennsylvania Spatial Data Access, Penn State), whose underlying agencies include the PHMC,
+      DCNR and the PA Geological Survey, PennDOT, DEP, the Fish &amp; Boat and Game Commissions,
+      WeConservePA, FEMA, NGS, the USGS and HIFLD. County geometry
       is U.S. Census via us-atlas. Street tiles © OpenStreetMap contributors; hillshade and satellite
       imagery by Esri; USGS topographic quads via Esri; railway overlay © OpenRailwayMap contributors
       (CC-BY-SA). Marker text and details are from the Pennsylvania Historical &amp; Museum Commission.</p>
     <h3>Honesty about the data</h3>
     <ul class="fine">
-      <li>County high points are the highest <i>named</i> summit per county; the true maximum is often an unnamed rise.</li>
+      <li>County high points are the highest <i>named</i> summit per county; the true maximum is a separate layer, and rarely the same place.</li>
+      <li>Digitized mined areas were traced from operators' own mine maps — what was reported worked out, not a verified void.</li>
+      <li>DEP's dam status and type letters have no published key, so they are shown as-is rather than guessed at.</li>
       <li>Covered bridges and fire towers are filtered from the GNIS gazetteer by name — named features, not a complete inventory.</li>
       <li>"Places that are gone" are features GNIS marks (historical); no closure date or cause is recorded.</li>
       <li>Trail activity flags are undocumented codes read as permitted/not; unknowns are omitted.</li>
@@ -391,8 +452,9 @@
       representing the Commonwealth of Pennsylvania, the PHMC, or any other agency. All data is drawn
       from public sources and presented as-is, with no warranty of accuracy or completeness. Do not
       rely on it for navigation, property or legal-boundary determinations, or safety decisions —
-      the flood-hazard and abandoned-mine layers in particular are informational only; consult the
-      official sources.</p>
+      the flood-hazard, abandoned-mine and underground-workings layers in particular are
+      informational only. Nothing here establishes whether a given piece of ground is undermined;
+      consult DEP and the official sources.</p>
     <h3>Support</h3>
     <p>The map is free and has no ads. If it's useful to you, you can
       <a href="https://ko-fi.com/CHANGEME" target="_blank" rel="noopener">☕ chip in toward hosting</a>.</p>
@@ -402,7 +464,31 @@
 const PASDA='https://mapservices.pasda.psu.edu/server/rest/services/pasda/';
 const ACCENT='#b68235';
 const INK='#201f1d', PAPER='#f3f2f2';
-const TYPE_COLOR={'Roadside':'#a06f24','City':'#4a3108','Plaque':'#c28d41'};
+/* Roadside and City read as filled dots in their own hue; Plaque is the rare one
+   (117 of 2,545) and gets a hollow ring, so the three stay separable in greyscale,
+   for colourblind readers, and at the 6px radius the statewide view draws them at.
+   The old palette was three steps of one gold ramp and read as a single category. */
+const TYPE_STYLE={
+  Roadside:{fill:'#9a5b16'},
+  City:    {fill:'#2c5468'},
+  Plaque:  {fill:'#8c2f2f', ring:true}
+};
+const typeStyle=t=>TYPE_STYLE[t]||TYPE_STYLE.Roadside;
+
+/* Coarse pointers get bigger dots and a fatter canvas hit box; see REN below. */
+const COARSE=matchMedia('(pointer:coarse)').matches;
+const markerRadius=z=>(z<8?3:z<10?4.2:z<12?5.5:7)*(COARSE?1.35:1);
+
+/* One source of truth for marker paint — creation, filtering, zoom and the legend
+   all route through it, so a restyle can never drop a ring's rim. */
+function markerPaint(m,{on=true,act=false,r=3.4}={}){
+  const s=typeStyle(m.t);
+  return s.ring
+    ? {radius:r+.6, fillColor:PAPER,  fillOpacity:on?.9:.1,
+       color:act?INK:s.fill, weight:act?2.6:1.6, opacity:on?(act?1:.85):.06}
+    : {radius:r,    fillColor:s.fill, fillOpacity:on?.95:.1,
+       color:act?INK:PAPER,  weight:act?1.8:.7,  opacity:on?(act?1:.7):.06};
+}
 const LANDMARKS=[
   {kind:'high',name:'Mount Davis',elev:'3,213 ft',county:'Somerset',lat:39.78619,lon:-79.17586,
    note:'The highest natural point in Pennsylvania, on a ridge crest in Forbes State Forest near Markleton. A paved road runs almost to the summit; an observation tower stands near the true high point. Established as the state high point by the USGS in 1921.'},
@@ -428,7 +514,11 @@ const GLYPH={
   mail:'<rect x="2.5" y="5" width="19" height="14" rx="1.6"/><path d="m3 6.5 9 6.5 9-6.5"/>',
   hazard:'<path d="M12 3 1.6 21h20.8z"/><path d="M12 9.5v5"/><path d="M12 18h.01"/>',
   droplet:'<path d="M12 2.7 6.6 9.4a7.2 7.2 0 1 0 10.8 0z"/>',
-  ruin:'<path d="M3 21V8l4-3v4l5-3v5l5-3v13z"/><path d="M3 21h18"/>'
+  ruin:'<path d="M3 21V8l4-3v4l5-3v5l5-3v13z"/><path d="M3 21h18"/>',
+  quake:'<path d="M2 12h3l2.5-7 3.5 14 3-9 2 4h6"/>',
+  train:'<rect x="5" y="3" width="14" height="13" rx="2.5"/><path d="M5 11h14"/><path d="M9 20l-2.5 2M15 20l2.5 2"/><path d="M9.5 7.5h.01M14.5 7.5h.01"/>',
+  tunnel:'<path d="M3 21V12a9 9 0 0 1 18 0v9"/><path d="M8.5 21v-8.5a3.5 3.5 0 0 1 7 0V21"/>',
+  gem:'<path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/><path d="m12 21-4-12 2-6"/><path d="m12 21 4-12-2-6"/>'
 };
 /* Each glyph rides on an opaque chip with a colored ring — a bare stroke disappears
    into the road tiles no matter how dark it is. */
@@ -444,6 +534,11 @@ const clean=s=>String(s||'').replace(/\s*\(historical\)\s*$/i,'').trim();
 /* GNIS appends "(historical)" to features it records as no longer there. */
 const gone=p=>/\(historical\)/i.test(p.FEATURE_NAME||'');
 const val=s=>{const t=String(s==null?'':s).trim();return t&&t!=='0'&&t!=='null'?t:null};
+/* Several of the engineering services store names in block capitals, which reads as
+   shouting next to everything else. Directional suffixes stay codes, not words. */
+const title=s=>{const t=val(s);
+  return t?t.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase())
+    .replace(/\b(Ib|Ob|Eb|Wb|Nb|Sb)\b/g,m=>m.toUpperCase()):null};
 const miles=v=>v==null||!isFinite(v)?null:Number(v).toFixed(1)+' mi';
 const ord=v=>{if(!(v>0))return null;const n=Math.round(v),t=n%100,u=n%10;
   return n+((t>=11&&t<=13)?'th':u===1?'st':u===2?'nd':u===3?'rd':'th')};
@@ -456,9 +551,31 @@ const url=u=>{const t=val(u);if(!t)return null;return /^https?:/i.test(t)?t:'htt
 /* PASDA activity columns are undocumented codes; 1 reads as permitted, 2 as not. */
 const yes=v=>v===1||/^yes$/i.test(String(v||'').trim());
 const permits=(p,map)=>Object.entries(map).filter(([k])=>yes(p[k])).map(([,l])=>l);
+/* Bridge ownership codes, from the FHWA's Recording and Coding Guide (item 22) —
+   a published list, unlike the PASDA activity flags above. */
+const NBI_OWNER={'01':'State highway agency','02':'County highway agency',
+  '03':'Town or township','04':'City or municipality','11':'State park or forest agency',
+  '12':'Local park or forest agency','21':'Other state agency','25':'Other local agency',
+  '26':'Private','27':'Railroad','31':'State toll authority','32':'Local toll authority',
+  '60':'Other federal agency','64':'U.S. Forest Service','66':'National Park Service',
+  '70':'Corps of Engineers','80':'Unknown'};
 
-/* Live PASDA / Penn State map services. Each entry is fetched the first time its box is ticked. */
+/* Live PASDA / Penn State map services. Each entry is fetched the first time its box is ticked.
+   Array order is group order in the rail — buildRail() reads it straight off this list. */
 const DATA=[
+ {group:'Map style',id:'histtopo',desc:'Scanned USGS topographic quadrangles: the classic contour sheets, good for seeing the ground before modern development.',label:'USGS topo quads',sub:'Scanned USGS topographic quads · Esri',
+  kind:'raster',tileUrl:'https://server.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}',
+  opacity:.75,maxNativeZoom:15,attribution:'USGS topo: Esri, USGS',style:{color:'#7a6a4f'}},
+ {group:'Map style',id:'quads',desc:'The 7.5-minute grid the scanned topo sheets are cut on — turn both on and each sheet gets its name and edges.',label:'USGS quad boundaries',sub:'798 7.5-minute quadrangles',
+  src:'USGeologicalSurvey/MapServer/7',where:"STATE1='PA'",fields:'NAME,QUADID,STATE1,STATE2',kind:'poly',
+  style:{color:'#7a6a4f',weight:.9,dashArray:'3 3',fill:false},
+  name:p=>title(p.NAME)?title(p.NAME)+' quadrangle':'Quadrangle',sub2:()=>'USGS 7.5-minute quad',
+  rows:p=>[['Quad id',val(p.QUADID)],
+    ['Spans',[val(p.STATE1),val(p.STATE2)].filter(Boolean).join(' · ')||null]]},
+ {group:'Map style',id:'orm',desc:'Rail lines drawn from OpenStreetMap, including yards, sidings and abandoned grades.',label:'Railways',sub:'Active & abandoned lines · OpenRailwayMap',
+  kind:'raster',tileUrl:'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
+  opacity:.9,attribution:'© OpenRailwayMap (CC-BY-SA)',style:{color:'#b04a3a'}},
+
  {group:'Protected land',id:'parks',label:'State parks',sub:'124 DCNR parks',
   src:'DCNR/MapServer/8',fields:'PARK_NAME,GIS_ACRE,COUNTY,TYPE,NICKNAMES,WEBLINK',simplify:0.0006,kind:'poly',
   style:{color:'#2f6b45',weight:1.6,fillColor:'#6fa87c',fillOpacity:.38},
@@ -506,6 +623,50 @@ const DATA=[
   glyph:'anchor',size:16,style:{color:'#1f5878'},
   name:p=>p.ACC_NAME||'Access point',sub2:p=>p.WATERBODY||'Water access',
   rows:p=>[['Water',p.WATERBODY],['County',p.COUNTY],['Township',p.MUNICPAL],['Owner',p.OWNER]]},
+
+ {group:'Geology &amp; ice',id:'physio',desc:'The six great structural divisions of the state. Almost everything else on this map — where the ridges run, where the coal is, where the towns went — follows from them.',label:'Physiographic provinces',sub:'6 provinces, PA Geological Survey',
+  src:'DCNR2/MapServer/24',fields:'PROVINCE,AREA_SQMIL',simplify:0.001,kind:'poly',
+  style:{color:'#6b5a3e',weight:2,fillColor:'#c4b393',fillOpacity:.22},
+  name:p=>val(p.PROVINCE)||'Province',sub2:()=>'Physiographic province',
+  rows:p=>[['Area',p.AREA_SQMIL>0?fmt(p.AREA_SQMIL)+' sq mi':null]],
+  text:()=>'A physiographic province is ground that shares one structural history, and so one '
+    +'shape. Pennsylvania holds six of them, and the seam between the folded Ridge and Valley '
+    +'and the flat-lying Appalachian Plateaus is the single most consequential line in the state.'},
+ {group:'Geology &amp; ice',id:'bedrock',desc:'The rock beneath the soil, mapped as geologic units by age and lithology. Drawn as an image because the survey maps 14,478 separate bodies of rock.',label:'Bedrock geology',sub:'14,478 mapped units · from zoom 8',
+  src:'DCNR2/MapServer',layers:'11',kind:'raster',minZoom:8,opacity:.45,
+  attribution:'Bedrock geology: PA Geological Survey via PASDA',style:{color:'#8a6a45'}},
+ {group:'Geology &amp; ice',id:'glacial',desc:'How far south the Late Wisconsinan ice sheet reached, roughly 20,000 years ago. North of it the valleys were scoured and dammed; south of it they were not.',label:'Late Wisconsinan glacial border',sub:'The southern limit of the last ice sheet',
+  src:'DCNR2/MapServer/6',fields:'GLACIATED',simplify:0.0004,kind:'line',
+  style:{color:'#2f5f86',weight:2.8,dashArray:'10 4 2 4'},
+  name:()=>'Late Wisconsinan glacial border',sub2:()=>'Limit of the last ice sheet',
+  rows:()=>[['Age','About 20,000 years ago']],
+  text:()=>'Everything north of this line lay under ice at the last glacial maximum. The ice '
+    +'reversed the drainage of the northwest, left the lakes and bogs of the northeast, and '
+    +'stopped here — the valleys immediately south of it were never touched.'},
+ {group:'Geology &amp; ice',id:'eskers',desc:'Gravel ridges laid down by rivers that ran inside and beneath the ice. When the ice melted the riverbed was left standing above the ground around it.',label:'Eskers',sub:'108 glacial gravel ridges',
+  src:'DCNR2/MapServer/10',fields:'Comp_Scale,Feature_So,Status',simplify:0.0002,kind:'line',
+  style:{color:'#7d6a9c',weight:2.4},
+  name:()=>'Esker',sub2:()=>'Glacial gravel ridge',
+  rows:p=>[['Mapped at',p.Comp_Scale>0?'1:'+fmt(p.Comp_Scale):null],['Source',val(p.Feature_So)]],
+  text:()=>'A ridge of sand and gravel dropped by a stream flowing in a tunnel under the '
+    +'glacier. The ice is gone; the riverbed remains, running across country as a long low bank.'},
+ {group:'Geology &amp; ice',id:'coalfields',desc:'The state’s coal by rank — anthracite in the folded northeast, bituminous across the western plateau. The two built entirely different places.',label:'Coal fields',sub:'Anthracite &amp; bituminous, by rank',
+  srcs:['DCNR2/MapServer/12','DCNR2/MapServer/16','DCNR2/MapServer/13','DCNR2/MapServer/14','DCNR2/MapServer/15'],
+  fields:'Coal_Field,Coal_Type,Status',simplify:0.001,kind:'poly',
+  style:{color:'#3a2c1f',weight:1.2,fillColor:'#5c4a35',fillOpacity:.3},
+  name:p=>val(p.Coal_Field)||'Coal field',sub2:p=>val(p.Coal_Type)||'Coal field',
+  rows:p=>[['Rank',val(p.Coal_Type)],['Field',val(p.Coal_Field)]]},
+ {group:'Geology &amp; ice',id:'quakes',desc:'Every earthquake the Geological Survey has a record of, from the colonial period to 2003. Pennsylvania is not seismically quiet, only seismically modest.',label:'Earthquakes, 1724–2003',sub:'Recorded epicentres, PA Geological Survey',
+  src:'DCNR2/MapServer/2',fields:'MAP_NO,DATE,NO_EVTS,MMAG',kind:'point',
+  glyph:'quake',size:15,style:{color:'#8c4a1c'},
+  name:p=>'Earthquake'+(val(p.DATE)?', '+String(p.DATE).slice(0,4):''),
+  sub2:p=>p.MMAG>0?'Magnitude '+Number(p.MMAG).toFixed(1)+' epicentre':'Recorded epicentre',
+  rows:p=>[['Date',val(p.DATE)?String(p.DATE).replace(/\//g,'-'):null],
+    ['Magnitude',p.MMAG>0?Number(p.MMAG).toFixed(1):null],
+    ['Events recorded',+p.NO_EVTS>1?p.NO_EVTS:null],['Survey map no.',val(p.MAP_NO)]],
+  text:p=>p.MMAG>0?null:'The Geological Survey logged this epicentre without a magnitude — most '
+    +'of the older entries predate instruments and are known only from accounts of the shaking.'},
+
  {group:'Curiosities',id:'bridges',desc:'Pulled out of the gazetteer by name, so these are the named bridges rather than a complete inventory.',label:'Covered bridges',sub:'72 named in the GNIS gazetteer',
   src:'GNIS/MapServer/5',where:"STATE_ALPHA='PA' AND FEATURE_NAME LIKE '%Covered Bridge%'",
   fields:'FEATURE_NAME,COUNTY_NAME,FEATURE_CLASS',kind:'point',
@@ -518,6 +679,67 @@ const DATA=[
   glyph:'tower',size:19,style:{color:'#c07d16'},
   name:p=>clean(p.FEATURE_NAME),sub2:p=>/historical/i.test(p.FEATURE_NAME||'')?'Fire tower (historical)':'Fire tower',
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null]]},
+ {group:'Curiosities',id:'geoheritage',desc:'Places the Geological Survey singles out for what the rock does there — a gorge, a balanced boulder, a fossil bed. Each entry says why it was picked.',label:'Geoheritage sites',sub:'220 designated sites',
+  src:'DCNR2/MapServer/36',
+  fields:'SiteName,GeneralDescription,RationalForDesignation,Bedrock,PublicLand,TrailOfGeology,CommonName,ScientificName',
+  kind:'point',glyph:'gem',size:17,style:{color:'#6a4d8c'},
+  name:p=>val(p.SiteName)||'Geoheritage site',
+  /* CommonName is what the feature *is* — "rock city", "anticline", "ice mine" —
+     which says more than the designation category does. */
+  sub2:p=>{const t=val(p.CommonName);
+    return t?t.replace(/^./,c=>c.toUpperCase()):'Geoheritage site'},
+  rows:p=>[['Feature type',val(p.CommonName)],['Designated for',val(p.RationalForDesignation)],
+    ['Classification',val(p.ScientificName)],['Bedrock',val(p.Bedrock)],
+    ['On',val(p.PublicLand)],['Trail of Geology',val(p.TrailOfGeology)]],
+  text:p=>val(p.GeneralDescription)},
+
+ {group:'Rails &amp; roads',id:'raillines',desc:'Every track PennDOT has on file, from Class I main lines down to industrial leads and yard sidings.',label:'Rail lines',sub:'9,007 track segments',
+  src:'PennDOT/MapServer/22',
+  fields:'RR_OPERRR,RR_LINENAM,RR_DIVISIO,RR_CLASS,TRACK_USE,TRACK_TYPE,PARENT_ORG,OUNTY_NAME',
+  simplify:0.0002,kind:'line',dynamic:9,
+  style:{color:'#4a4038',weight:1.8,dashArray:'6 3'},
+  name:p=>val(p.RR_LINENAM)||val(p.PARENT_ORG)||val(p.RR_OPERRR)||'Rail line',
+  sub2:p=>val(p.TRACK_TYPE)||val(p.TRACK_USE)||'Rail line',
+  rows:p=>[['Operator',val(p.RR_OPERRR)],['Parent',val(p.PARENT_ORG)],['Division',val(p.RR_DIVISIO)],
+    ['Class',val(p.RR_CLASS)],['Use',val(p.TRACK_USE)],['County',title(p.OUNTY_NAME)]]},
+ {group:'Rails &amp; roads',id:'amtrak',label:'Amtrak stations',sub:'56 stations and stops',
+  src:'HIFLD_FEMA_PA/MapServer/14',fields:'Name,City,StaType,StnType,Address1,Code,State',
+  where:"State='PA'",kind:'point',glyph:'train',size:16,style:{color:'#1f4a6b'},
+  name:p=>val(p.City)?val(p.City)+' station':(val(p.Name)||'Amtrak station'),
+  sub2:p=>val(p.StaType)||'Amtrak station',
+  rows:p=>[['Station code',val(p.Code)],['Address',val(p.Address1)],['Facility',val(p.StaType)],
+    ['Service',val(p.StnType)]]},
+ {group:'Rails &amp; roads',id:'tunnels',desc:'Every road tunnel in the National Tunnel Inventory — the Turnpike’s mountain bores among them, several of them cut for a railroad that was never finished.',label:'Highway tunnels',sub:'28 tunnels in the federal inventory',
+  src:'HIFLD_FEMA_PA/MapServer/139',where:"state_code='42'",
+  fields:'tunnel_nam,year_built,year_rehab,route_numb,total_numb',
+  kind:'point',glyph:'tunnel',size:17,style:{color:'#4a3a5c'},
+  name:p=>title(p.tunnel_nam)||'Tunnel',
+  sub2:p=>p.year_built>0?'Highway tunnel, '+p.year_built:'Highway tunnel',
+  rows:p=>[['Built',p.year_built>0?p.year_built:null],['Rehabilitated',p.year_rehab>0?p.year_rehab:null],
+    ['Route',val(p.route_numb)?String(+p.route_numb):null],['Bores',p.total_numb>0?p.total_numb:null]]},
+ {group:'Rails &amp; roads',id:'oldbridges',desc:'Bridges PennDOT records as built before 1900 and still carrying traffic. The year is the structure’s own, so a rebuilt deck on an original abutment still reads early.',label:'Bridges built before 1900',sub:'643 nineteenth-century structures',
+  src:'PennDOT/MapServer/21',where:'YEARBUILT>0 AND YEARBUILT<1900',
+  fields:'BRIDGE_ID,YEARBUILT,LOCATION,OWNER,MAINSPANS,ROADWIDTH,DISTRICT',
+  kind:'point',glyph:'bridge',size:15,style:{color:'#6b4a2c'},
+  /* LOCATION is the inspector's own shorthand — kept verbatim in the panel, but it
+     makes a poor label, so the year does the naming. */
+  name:p=>p.YEARBUILT>0?'Bridge, '+p.YEARBUILT:'Nineteenth-century bridge',
+  sub2:p=>NBI_OWNER[String(p.OWNER)]||'Nineteenth-century bridge',
+  rows:p=>[['Built',p.YEARBUILT>0?p.YEARBUILT:null],['Location',val(p.LOCATION)],
+    ['Owner',NBI_OWNER[String(p.OWNER)]||null],
+    ['Main spans',p.MAINSPANS>0?p.MAINSPANS:null],
+    ['Roadway width',p.ROADWIDTH>0?Number(p.ROADWIDTH).toFixed(1)+' ft':null],
+    ['Structure no.',val(p.BRIDGE_ID)]]},
+ {group:'Rails &amp; roads',id:'tolls',desc:'The Turnpike’s interchanges. It opened in 1940 on the grade of an abandoned railroad, and the exits have been renumbered since — both numbers are here.',label:'Turnpike interchanges',sub:'88 toll plazas',
+  src:'PennDOT/MapServer/1',
+  fields:'SITE_NAME,COUNTY,MUNICIPALI,EXIT_,OLD_EXIT,OPENING_DA,ST_RT_NO,DIRECTION',
+  kind:'point',glyph:'place',size:15,style:{color:'#7a5c2e'},
+  name:p=>val(p.SITE_NAME)?String(p.SITE_NAME).replace(/\.$/,''):'Toll plaza',
+  sub2:p=>val(p.EXIT_)?'Turnpike exit '+p.EXIT_:'Turnpike interchange',
+  rows:p=>[['Exit',val(p.EXIT_)],
+    ['Former exit',val(p.OLD_EXIT)&&val(p.OLD_EXIT)!==val(p.EXIT_)?p.OLD_EXIT:null],
+    ['Opened',ymd(p.OPENING_DA)],['County',title(p.COUNTY)],['Municipality',title(p.MUNICIPALI)],
+    ['Direction',val(p.DIRECTION)]]},
 
  {group:'Protected land',id:'fdist',desc:'The Bureau of Forestry’s twenty administrative districts, which blanket the whole state, not only forested land.',label:'Forest districts',sub:'20 Bureau of Forestry districts',
   src:'DCNR/MapServer/15',fields:'DistrictNu,DistrictNa,Acreage',simplify:0.002,kind:'poly',
@@ -548,6 +770,15 @@ const DATA=[
     Rock_Climb:'Rock climbing',Scenic_Vie:'Scenic view',Wildlife_W:'Wildlife watching',
     Fitness_Eq:'Fitness equipment',Visitor_Ce:'Visitor center'}),
   links:p=>[['Park website',url(p.URL)]]},
+ {group:'Protected land',id:'campgrounds',label:'State park campgrounds',sub:'65 campground entrances',
+  src:'DCNR2/MapServer/28',
+  fields:'Name,PARK_NAME,NUM_SITES,SEASON_MON,ELECTRIC,PETS_ALLOW,ADA_SITES,RESTROOMS,MAP_LINK',
+  kind:'point',glyph:'tent',size:16,style:{color:'#3f7a4e'},
+  name:p=>val(p.Name)||'Campground',sub2:p=>val(p.PARK_NAME)?val(p.PARK_NAME)+' State Park':'State park campground',
+  rows:p=>[['Park',val(p.PARK_NAME)],['Sites',p.NUM_SITES>0?fmt(p.NUM_SITES):null],
+    ['Open',p.SEASON_MON>0?p.SEASON_MON+' months a year':null],['Restrooms',val(p.RESTROOMS)]],
+  chips:p=>permits(p,{ELECTRIC:'Electric hookups',PETS_ALLOW:'Pets allowed',ADA_SITES:'ADA sites'}),
+  links:p=>[['Park map',url(p.MAP_LINK)]]},
  {group:'Protected land',id:'conserved',desc:'Every kind of land held for conservation — federal, state, county, municipal and private trust — pooled into one inventory.',label:'Conserved land',sub:'Federal, state, local &amp; private holdings',
   srcs:['WeConservePA/MapServer/2','WeConservePA/MapServer/5','WeConservePA/MapServer/3','WeConservePA/MapServer/4'],
   fields:'*',simplify:0.0002,kind:'poly',dynamic:10,
@@ -594,6 +825,16 @@ const DATA=[
   glyph:'tent',size:18,style:{color:'#7a2418'},
   name:p=>p.NAME||p.Name||p.SHELTER||'Shelter',sub2:()=>'Appalachian Trail shelter',
   rows:p=>[['County',p.COUNTY||p.County]]},
+ {group:'Trails',id:'parktrails',desc:'The footpaths inside the state parks — the short loops and connectors that the statewide trail inventory does not carry.',label:'State park hiking trails',sub:'1,256 park trail segments',
+  src:'DCNR2/MapServer/29',
+  fields:'NAME,TYPE,SURFACE,MILES,PUBLIC_USE,TYPE_HIKIN,TYPE_BICYC,TYPE_EQUES,TYPE_MOUNT,TYPE_SNOWM,TYPE_XCOUN,TYPE_BACKP',
+  simplify:0.0002,kind:'line',dynamic:10,
+  style:{color:'#2f7a52',weight:2,dashArray:'3 3'},
+  name:p=>val(p.NAME)||'Park trail',sub2:()=>'State park trail',
+  rows:p=>[['Length',p.MILES>0?Number(p.MILES).toFixed(2)+' mi':null],['Surface',val(p.SURFACE)]],
+  chips:p=>permits(p,{TYPE_HIKIN:'Hiking',TYPE_BACKP:'Backpacking',TYPE_BICYC:'Bicycling',
+    TYPE_MOUNT:'Mountain biking',TYPE_EQUES:'Equestrian',TYPE_SNOWM:'Snowmobile',
+    TYPE_XCOUN:'Cross-country skiing'})},
 
  {group:'Boundaries',id:'muni',label:'Municipalities',sub:'2,567 townships, boroughs &amp; cities',
   src:'PennDOT/MapServer/10',fields:'*',simplify:0.0004,kind:'poly',
@@ -618,6 +859,14 @@ const DATA=[
   name:p=>'Senate District '+(p.LEG_DISTRI||p.SEN_DISTRI||''),sub2:()=>'State Senate district',
   rows:p=>[['Member',[p.S_FIRSTNAM,p.S_LASTNAME].filter(Boolean).join(' ')],['Party',p.PARTY],
     ['Home county',p.HOME_COUNT]]},
+ {group:'Boundaries',id:'congress',label:'U.S. Congressional districts',sub:'17 districts, with sitting member',
+  src:'PennDOT/MapServer/6',fields:'LEG_DISTRI,C_FIRSTNAM,C_LASTNAME,PARTY,HOME_COUNT,URL',
+  simplify:0.0008,kind:'poly',
+  style:{color:'#2b2f5c',weight:1.8,dashArray:'12 3 2 3',fill:false},
+  name:p=>'Congressional District '+(p.LEG_DISTRI||''),sub2:()=>'U.S. Congressional district',
+  rows:p=>[['Member',[val(p.C_FIRSTNAM),val(p.C_LASTNAME)].filter(Boolean).join(' ')||null],
+    ['Party',val(p.PARTY)],['Home county',val(p.HOME_COUNT)]],
+  links:p=>[['Member’s website',url(p.URL)]]},
 
  {group:'Survey &amp; industry',id:'monuments',desc:'Brass disks and markers the National Geodetic Survey set as precise reference points for position and elevation.',label:'NGS survey monuments',sub:'16,198 benchmarks',
   src:'NGS_PA_Monumentation/MapServer/0',fields:'*',kind:'point',dynamic:11,
@@ -679,8 +928,20 @@ const DATA=[
   text:()=>'The highest summit the USGS gazetteer names in this county. A county\u2019s true '
     +'topographic high point is often an unnamed rise on a ridge, so treat this as the highest '
     +'place with a name on it rather than the highest ground.'},
+ {group:'Natural landmarks',id:'maxelev',desc:'The actual highest ground in each county, from DCNR\u2019s elevation model \u2014 usually an unnamed rise, and rarely the named summit next door.',label:'County maximum elevations',sub:'67 true county high points',
+  src:'DCNR2/MapServer/3',fields:'County,Max_Elevat,POINTID',kind:'point',
+  glyph:'summit',size:18,style:{color:'#1f4d2e'},
+  derive:fs=>fs.slice().sort((a,b)=>b.properties.Max_Elevat-a.properties.Max_Elevat)
+    .map((f,i)=>{f.properties._rank=i+1;f.properties._of=fs.length;return f}),
+  name:p=>(val(p.County)||'County')+' County high point',
+  sub2:p=>p.Max_Elevat>0?'Highest ground in the county \u00b7 '+fmt(p.Max_Elevat)+' ft':'County high point',
+  rows:p=>[['Elevation',p.Max_Elevat>0?fmt(p.Max_Elevat)+' ft':null],
+    ['Rank',p._rank?p._rank+' of '+p._of+' counties':null]],
+  text:()=>'The true topographic maximum, taken off the elevation model rather than the '
+    +'gazetteer \u2014 so it usually falls on unnamed ground. Turn on County high points to see '
+    +'the highest place in the county that actually carries a name; the two rarely coincide.'},
 
- {group:'Abandoned mine lands',id:'coal',desc:'Coal operations DEP has permitted — active, inactive and reclaimed sites, not only working mines.',label:'Coal mining operations',sub:'13,951 permitted sites',
+ {group:'Mining &amp; underground',id:'coal',desc:'Coal operations DEP has permitted — active, inactive and reclaimed sites, not only working mines.',label:'Coal mining operations',sub:'13,951 permitted sites',
   src:'DEP/MapServer/6',fields:'SITE_NAME,ORGANIZATI,PRIMARY__3,SUB_FACI_2,SITE_STATU,OTHER_FACI,COMPLIANCE',
   kind:'point',dynamic:10,glyph:'mine',size:15,style:{color:'#4a2c17'},
   name:p=>val(p.SITE_NAME)||'Coal mining operation',
@@ -694,6 +955,38 @@ const DATA=[
   name:p=>val(p.NAME)||'Unnamed tributary',
   sub2:p=>p.NAMED?'Named stream':'Unnamed tributary',
   rows:p=>[['Watershed',val(p.SHED)],['Strahler order',p.STRAHLER>0?p.STRAHLER:null]]},
+ {group:'Water',id:'watersheds',desc:'The sixty basins the state drains through. Every stream on the map belongs to one of them, and they pay no attention to county lines.',label:'Major watersheds',sub:'60 HUC-8 basins',
+  src:'USGeologicalSurvey/MapServer/8',fields:'HUC_8,HU_8_NAME',simplify:0.0008,kind:'poly',
+  style:{color:'#2f6d8f',weight:1.6,dashArray:'9 4',fillColor:'#7fb4cc',fillOpacity:.14},
+  /* The USGS name field carries the states it spans after a full stop. */
+  name:p=>String(val(p.HU_8_NAME)||'Watershed').split('.')[0].trim()+' basin',
+  sub2:()=>'HUC-8 watershed',
+  rows:p=>[['Hydrologic unit',val(p.HUC_8)],
+    ['Spans',String(val(p.HU_8_NAME)||'').split('.').slice(1).join('.').replace(/\.$/,'').trim()||null]]},
+ {group:'Water',id:'scenicriv',desc:'Reaches the legislature has designated under the Scenic Rivers Act, each with a class from Wild through Modified Recreational.',label:'State scenic rivers',sub:'144 designated reaches',
+  src:'DCNR2/MapServer/34',
+  fields:'ScenicRive,Location,Class,Segment_Mi,Total_Mile,Website,Desc1',
+  simplify:0.0002,kind:'line',
+  style:{color:'#1f7a8c',weight:2.8},
+  name:p=>val(p.Location)||val(p.ScenicRive)||'Scenic river',
+  sub2:p=>val(p.Class)?val(p.Class)+' river':'State scenic river',
+  rows:p=>[['System',val(p.ScenicRive)],['Class',val(p.Class)],
+    ['Segment',p.Segment_Mi>0?Number(p.Segment_Mi).toFixed(1)+' mi':null],
+    ['System length',p.Total_Mile>0?Number(p.Total_Mile).toFixed(1)+' mi':null]],
+  text:p=>val(p.Desc1)?'Designated '+p.Desc1.replace(/^from/i,'from')+'.':null,
+  links:p=>[['More on this river',url(p.Website)]]},
+ {group:'Water',id:'histdams',desc:'DEP’s register of dams it no longer counts as sound — breached, abandoned, removed or unaccounted for. The status letters are the bureau’s own and are not published anywhere.',label:'Historic &amp; breached dams',sub:'5,002 structures on file',
+  src:'DEP2/MapServer/25',
+  fields:'DAM_NAME,DAM_NAME_H,YEAR_COMPL,STATUS_COD,TYPE_CODE,HEIGHT,MAX_STORAG,DRAINAGE_A',
+  kind:'point',dynamic:10,glyph:'dam',size:15,style:{color:'#6b3f2c'},
+  name:p=>{const n=val(p.DAM_NAME); return n&&!/^unnamed$/i.test(n)?title(n):'Unnamed dam'},
+  sub2:()=>'Historic or breached dam',
+  rows:p=>[['Formerly known as',title(p.DAM_NAME_H)],['Completed',val(p.YEAR_COMPL)],
+    ['Height',p.HEIGHT>0?fmt(p.HEIGHT)+' ft':null],
+    ['Maximum storage',p.MAX_STORAG>0?fmt(p.MAX_STORAG)+' acre-ft':null],
+    ['Drainage area',p.DRAINAGE_A>0?Number(p.DRAINAGE_A).toFixed(1)+' sq mi':null],
+    ['DEP status code',val(p.STATUS_COD)&&val(p.STATUS_COD)!=='#N/A'?p.STATUS_COD.trim():null],
+    ['DEP type code',val(p.TYPE_CODE)]]},
 
  {group:'Boundaries',id:'unpaved',desc:'Dirt and gravel roads inventoried under the state’s Dirt, Gravel &amp; Low-Volume Road program.',label:'Unpaved roads',sub:'19,853 dirt &amp; gravel segments',
   src:'DEP/MapServer/33',fields:'COUNTY,LENGTH',simplify:0.0002,kind:'line',dynamic:11,
@@ -767,8 +1060,13 @@ const DATA=[
   name:p=>clean(p.FEATURE_NAME),sub2:p=>val(p.FEATURE_CLASS)||'Mine',
   rows:p=>[['County',val(p.COUNTY_NAME)],['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
     ['USGS quad',val(p.MAP_NAME)]]},
+ {group:'Places &amp; names',id:'ccc',desc:'Civilian Conservation Corps camps, 1933–42. Much of what the state parks are made of — roads, dams, trails, cabins, the tree cover itself — was built out of these.',label:'CCC camps',sub:'153 camps, 1933–42',
+  src:'DCNR2/MapServer/26',fields:'NAME,COMMENTS,CampID',kind:'point',
+  glyph:'ruin',size:15,style:{color:'#6b5a2c'},
+  name:p=>val(p.NAME)||'CCC camp',sub2:()=>'Civilian Conservation Corps camp',
+  rows:p=>[['Camp id',val(p.CampID)]],text:p=>val(p.COMMENTS)},
 
- {group:'Abandoned mine lands',id:'amlSites',desc:'Abandoned mine lands: the mapped extent of ground damaged by mining that was abandoned before the 1977 federal cleanup law.',label:'AML problem areas',sub:'22,350 mapped boundaries',
+ {group:'Mining &amp; underground',id:'amlSites',desc:'Abandoned mine lands: the mapped extent of ground damaged by mining that was abandoned before the 1977 federal cleanup law.',label:'AML problem areas',sub:'22,350 mapped boundaries',
   src:'DEP/MapServer/1',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
   simplify:0.00008,kind:'poly',dynamic:11,
   style:{color:'#8c1c13',weight:1.2,fillColor:'#d4746b',fillOpacity:.42},
@@ -777,7 +1075,7 @@ const DATA=[
     ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
     ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
     ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
- {group:'Abandoned mine lands',id:'amlPoints',desc:'The individual hazards inside those areas — open shafts, spoil piles, subsidence and acid mine drainage discharges.',label:'AML inventory points',sub:'13,003 hazards &amp; discharges',
+ {group:'Mining &amp; underground',id:'amlPoints',desc:'The individual hazards inside those areas — open shafts, spoil piles, subsidence and acid mine drainage discharges.',label:'AML inventory points',sub:'13,003 hazards &amp; discharges',
   src:'DEP/MapServer/0',fields:'sf_name,other_id,sf_type,sf_status,sf_prior_1,sf_probl_1,height_ft,volume_cy,flow_gpm',
   kind:'point',dynamic:11,glyph:'hazard',size:15,style:{color:'#8c1c13'},
   name:p=>val(p.sf_name)||val(p.other_id)||'AML feature',sub2:p=>val(p.sf_type)||'Abandoned mine land',
@@ -785,32 +1083,75 @@ const DATA=[
     ['Highwall height',p.height_ft>0?fmt(p.height_ft)+' ft':null],
     ['Spoil volume',p.volume_cy>0?fmt(p.volume_cy)+' cu yd':null],
     ['Discharge',p.flow_gpm>0?fmt(p.flow_gpm)+' gal/min':null],['DEP id',val(p.other_id)]]},
- {group:'Abandoned mine lands',id:'reclaim',desc:'Sites where polluted mine drainage is being treated or abandoned workings restored.',label:'Mine drainage &amp; reclamation projects',sub:'233 treatment sites',
+ {group:'Mining &amp; underground',id:'reclaim',desc:'Sites where polluted mine drainage is being treated or abandoned workings restored.',label:'Mine drainage &amp; reclamation projects',sub:'233 treatment sites',
   src:'DEP/MapServer/19',fields:'SITE_NAME,ORGANIZATI,SUB_FACI_2,SITE_STATU,PRIMARY__3,OTHER_FACI',
   kind:'point',glyph:'droplet',size:15,style:{color:'#0f6b52'},
   name:p=>val(p.SITE_NAME)||'Reclamation project',sub2:p=>val(p.SUB_FACI_2)||'Reclamation project',
   rows:p=>[['Operator',val(p.ORGANIZATI)],['Status',val(p.SITE_STATU)],
     ['Funding',val(p.PRIMARY__3)&&!/unavailable/i.test(p.PRIMARY__3)?p.PRIMARY__3:null],
     ['Project id',val(p.OTHER_FACI)]]},
+ {group:'Mining &amp; underground',id:'minedareas',desc:'Ground that has already been taken out from underneath. DEP digitised these from the operators’ own mine maps, some of them a century old.',label:'Digitized mined areas',sub:'6,848 worked-out panels',
+  src:'DEP2/MapServer/1',fields:'COAL_SEAM,OPERATION,OPERATOR,LASTMINED,PERMIT_NO',
+  simplify:0.0001,kind:'poly',dynamic:10,
+  style:{color:'#3d2b1f',weight:.9,fillColor:'#6b5340',fillOpacity:.4},
+  name:p=>title(p.OPERATION)||'Mined area',
+  sub2:p=>title(p.COAL_SEAM)?title(p.COAL_SEAM)+' seam':'Mined-out ground',
+  rows:p=>[['Seam',title(p.COAL_SEAM)],['Operator',title(p.OPERATOR)],['Last mined',val(p.LASTMINED)],
+    ['Permit no.',val(p.PERMIT_NO)]]},
+ {group:'Mining &amp; underground',id:'longwall',desc:'Panels cut by longwall machines, which let the roof collapse behind them on purpose. The ground above each one subsides, by design and on a schedule.',label:'Longwall mining panels',sub:'1,063 panels, with completion years',
+  src:'DEP2/MapServer/0',fields:'PANEL,MINE,OPERATOR,YEAR_COMPL,STATUS',simplify:0.0001,kind:'poly',
+  style:{color:'#7a2f1c',weight:1,fillColor:'#b56a4e',fillOpacity:.36},
+  name:p=>[val(p.MINE),val(p.PANEL)].filter(Boolean).join(' · ')||'Longwall panel',
+  sub2:p=>p.YEAR_COMPL>0?'Longwall panel, completed '+p.YEAR_COMPL:'Longwall panel',
+  rows:p=>[['Mine',val(p.MINE)],['Panel',val(p.PANEL)],['Operator',val(p.OPERATOR)],
+    ['Completed',p.YEAR_COMPL>0?p.YEAR_COMPL:null],['Status',val(p.STATUS)]]},
+ {group:'Mining &amp; underground',id:'ugpermits',desc:'The permitted footprints of underground mines, current and long closed — the paper record of what was allowed to be taken.',label:'Historic underground mine permits',sub:'3,041 permit boundaries',
+  src:'DEP2/MapServer/3',
+  fields:'MINE_NAME,COMPANY_NA,COAL_SEAM,PERMIT_NUM,DATE_ISSUE,MINERAL,PERMIT_TYP',
+  simplify:0.0002,kind:'poly',dynamic:9,
+  style:{color:'#4a3a5c',weight:1.1,dashArray:'5 3',fillColor:'#8878a0',fillOpacity:.24},
+  name:p=>val(p.MINE_NAME)||'Underground mine',
+  sub2:p=>val(p.MINERAL)?val(p.MINERAL)+' underground permit':'Underground mine permit',
+  rows:p=>[['Company',val(p.COMPANY_NA)],['Seam',val(p.COAL_SEAM)],['Mineral',val(p.MINERAL)],
+    ['Permit no.',val(p.PERMIT_NUM)],['Issued',ymd(p.DATE_ISSUE)]]},
+ {group:'Mining &amp; underground',id:'portals',desc:'Where the workings met daylight, transcribed off DEP’s mylar mine maps — with the coal seam each one was driven into.',label:'Mine portals &amp; seam elevations',sub:'11,218 portals &amp; mine locations',
+  src:'DEP2/MapServer/14',
+  fields:'MINE_NAME,COMPANY,COAL_SEAM,ELEVATION,FEATURE,COUNTY,MUNICIPALI,QUAD_NAME,DATE_ISSUE',
+  kind:'point',dynamic:11,glyph:'mine',size:14,style:{color:'#5c4530'},
+  name:p=>val(p.MINE_NAME)||'Mine portal',
+  sub2:p=>val(p.FEATURE)||'Mine portal',
+  rows:p=>[['Company',val(p.COMPANY)],['Seam',val(p.COAL_SEAM)],
+    ['Seam elevation',p.ELEVATION>0?fmt(p.ELEVATION)+' ft':null],
+    ['County',val(p.COUNTY)],['Municipality',val(p.MUNICIPALI)],['USGS quad',val(p.QUAD_NAME)],
+    ['Permit issued',ymd(p.DATE_ISSUE)]]},
 
  {group:'Hazards',id:'flood',desc:'FEMA’s official flood insurance map — the 100- and 500-year floodplains used for insurance and building rules.',label:'FEMA flood hazard',sub:'National Flood Hazard Layer · from zoom 9',
-  src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}},
+  src:'FEMA_NationalFloodHazardLayer_PA/MapServer',layers:'0',kind:'raster',style:{color:'#2f6d8f'}}
+];
 
- {group:'Map styles',id:'histtopo',desc:'Scanned USGS topographic quadrangles: the classic contour sheets, good for seeing the ground before modern development.',label:'USGS topo quads',sub:'Scanned USGS topographic quads · Esri',
-  kind:'raster',tileUrl:'https://server.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}',
-  opacity:.75,maxNativeZoom:15,attribution:'USGS topo: Esri, USGS',style:{color:'#7a6a4f'}},
- {group:'Map styles',id:'orm',desc:'Rail lines drawn from OpenStreetMap, including yards, sidings and abandoned grades.',label:'Railways',sub:'Active & abandoned lines · OpenRailwayMap',
-  kind:'raster',tileUrl:'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
-  opacity:.9,attribution:'© OpenRailwayMap (CC-BY-SA)',style:{color:'#b04a3a'}}
+/* The four base maps are one-of-four, so they render as radios — but they sit in
+   the same list, in the same row format, as everything else. Which sheet you are
+   looking at and what is drawn on it are the same question. */
+const STYLE_DEFS=[
+  {id:'roads',label:'Roads',sub:'OpenStreetMap streets',
+   swatch:'<path d="M2 9h14M9 2v14" stroke="#8a7a63" stroke-width="1.6"/>'},
+  {id:'terrain',label:'Terrain',sub:'Esri hillshade beneath the streets',
+   swatch:'<path d="M1 14 6 5l3.4 5.4L12 7l5 7z" fill="#b9ac93" stroke="#6f6350" stroke-width="1"/>'},
+  {id:'paper',label:'Paper',sub:'No tiles — plain ground and county lines',
+   swatch:'<rect x="1.5" y="2.5" width="15" height="13" fill="#f8f4f4" stroke="#a89e8c" stroke-width="1"/>'},
+  {id:'sat',label:'Satellite',sub:'Esri World Imagery',
+   swatch:'<rect x="1.5" y="2.5" width="15" height="13" fill="#3f4a38"/>'
+     +'<path d="M1.5 11.5 6 7l3.5 3.5L13 7l3.5 3.5v5h-15z" fill="#5d6b4e"/>'
+     +'<circle cx="13" cy="5.5" r="1.6" fill="#c9c2a8"/>'},
 ];
 
 const BASE_DEFS=[
+  {id:'markers',label:'Historical markers',sub:'2,585 PHMC markers with coordinates',
+   swatch:'<circle cx="9" cy="9" r="3.4" fill="'+TYPE_STYLE.Roadside.fill+'"/>'},
   {id:'counties',label:'County boundaries',sub:'67 counties, U.S. Census geometry',
    swatch:'<rect x="1" y="4" width="16" height="10" fill="none" stroke="#201f1d" stroke-opacity=".5"/>'},
   {id:'labels',label:'County names',sub:'Shown from zoom 7 outward',
    swatch:'<text x="9" y="12" font-size="9" text-anchor="middle" fill="#201f1d" fill-opacity=".65" font-family="Cormorant Garamond">Aa</text>'},
-  {id:'markers',label:'Historical markers',sub:'2,585 PHMC markers with coordinates',
-   swatch:'<circle cx="9" cy="9" r="3.4" fill="#a06f24"/>'},
   {id:'peaks',label:'State high &amp; low points',sub:'Mount Davis, Herman Point, the Delaware',
    swatch:'<path d="M9 4 L15 14 L3 14 Z" fill="#201f1d"/>'}
 ];
@@ -819,6 +1160,7 @@ const BASE_DEFS=[
    describes whatever the detail panel is showing, in a form the URL can carry —
    four kinds open that panel and all of them should be shareable. */
 const state={markers:[],feats:[],byCounty:{},filtered:[],sel:null,pick:null,pending:null,
+  base:'roads',
   layers:{counties:true,labels:true,markers:false,peaks:false},
   on:{},loaded:{},busy:{},decade:0,gaz:{q:'',rows:[]}};
 
@@ -838,7 +1180,10 @@ const hill=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ele
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:19,detectRetina:RETINA_TILES,attribution:'Imagery: Esri, Maxar, Earthstar Geographics'});
 tiles.addTo(map);
+/* The radios live in the rail, which is rebuilt from scratch — so the choice is
+   held here rather than read back out of whatever DOM happens to exist. */
 function setBase(name){
+  state.base=name;
   const mapEl=document.getElementById('map');
   mapEl.classList.toggle('roads',name==='roads'||name==='terrain');
   mapEl.classList.toggle('terrain',name==='terrain');
@@ -858,13 +1203,22 @@ function setBase(name){
 map.getPane('pLab').style.pointerEvents='none';
 /* One shared canvas for every vector layer: separate canvas panes stack, and the
    topmost one swallows clicks meant for the layers beneath it. */
-const REN=L.canvas({pane:'pVec'});
+/* tolerance pads every hit test on this canvas. A circleMarker is hit-tested on its
+   drawn radius alone, so a 6px dot is an unwinnable target with a fingertip — and
+   because _onClick keeps only the last containing layer, the miss lands on the
+   county polygon sharing this renderer, which filters and zooms the view away.
+   reorder() draws mkLayer last, so a marker within tolerance beats the county. */
+const REN=L.canvas({pane:'pVec',tolerance:COARSE?12:4});
 
 const countyLayer=L.geoJSON(null,{pane:'pVec',renderer:REN,style:countyStyle,
   onEachFeature:(f,l)=>{
     l.on('mouseover',()=>l.setStyle({weight:2.2,color:ACCENT}))
      .on('mouseout',()=>l.setStyle(countyStyle(f)))
-     .on('click',()=>{document.getElementById('county').value=f.properties.name;
+     /* Stopped either way: the map-level fallback below handles genuine misses,
+        and must not fire a second time on a click this handler already answered. */
+     .on('click',e=>{L.DomEvent.stop(e);
+        if(claimNearby(e.latlng)) return;
+        document.getElementById('county').value=f.properties.name;
         applyFilters();map.fitBounds(l.getBounds(),{padding:[24,24]});})
      .bindTooltip(()=>`${f.properties.name} County · ${fmt(state.byCounty[f.properties.name]||0)} markers`,{sticky:true});
   }});
@@ -971,9 +1325,11 @@ async function fetchLayer(d,box){
           iconSize:[chip,chip],iconAnchor:[chip/2,chip/2]})});},
     onEachFeature:(f,l)=>{
       const nm=d.name(f.properties)||d.label.replace(/&amp;/g,'&');
-      if(f.geometry&&f.geometry.type==='Point'){
-        f.properties._lon=f.geometry.coordinates[0];
-        f.properties._lat=f.geometry.coordinates[1];
+      /* A few services return MultiPoint for what is really one place (the toll
+         plazas do); take the first coordinate so those stay shareable too. */
+      if(f.geometry&&(f.geometry.type==='Point'||f.geometry.type==='MultiPoint')){
+        const c=f.geometry.type==='Point'?f.geometry.coordinates:f.geometry.coordinates[0];
+        if(c){ f.properties._lon=c[0]; f.properties._lat=c[1]; }
       }
       l.bindTooltip(nm,{sticky:d.kind!=='point',direction:'top'});
       l.on('click',e=>{L.DomEvent.stop(e);showFeature(d,f.properties,nm,l)});
@@ -1088,7 +1444,7 @@ function reorder(){
 function countyStyle(f){
   const L2=state.layers, name=f.properties.name;
   const sel=document.getElementById('county').value;
-  const roads=document.querySelector('#base input:checked').value!=='paper';
+  const roads=state.base!=='paper';
   let fill='none', op=0;
   if(!roads){fill='#f8f4f4';op=1;}
   if(sel&&name===sel){fill=ACCENT;op=.16;}
@@ -1119,11 +1475,14 @@ async function boot(){
       icon:L.divIcon({className:'clabel',html:'<span>'+f.properties.name+'</span>',iconSize:null})}));
   });
 
+  const r0=markerRadius(map.getZoom());
   mkRefs=state.markers.map(m=>{
-    const c=L.circleMarker([m.lat,m.lon],{pane:'pVec',renderer:REN,radius:3.4,weight:.7,color:PAPER,
-      fillColor:TYPE_COLOR[m.t]||ACCENT,fillOpacity:.95});
+    const c=L.circleMarker([m.lat,m.lon],
+      Object.assign({pane:'pVec',renderer:REN},markerPaint(m,{r:r0})));
     c.bindTooltip(m.n,{direction:'top'});
-    c.on('click',()=>select(m,false));
+    /* Stopped so the map-level near-miss fallback doesn't select this same marker
+       a second time — select() pushes a history entry, so a double would too. */
+    c.on('click',e=>{L.DomEvent.stop(e);select(m,false)});
     c._m=m; mkLayer.addLayer(c); return c;
   });
 
@@ -1212,17 +1571,30 @@ function buildRail(){
         ${desc?`<span class="desc" id="${dId}">${desc}</span>`:''}
         <span class="sub">${sub}</span></div></label>`;
   };
-  let html=`<div class="grp"><h2 class="kicker gold">The base map</h2>`
+  /* Same row, round switch: one-of-four rather than a free toggle. */
+  const radioRow=(id,label,sub,swatch,checked)=>`<label class="layer">
+      <input type="radio" name="base" value="${id}" ${checked?'checked':''}>
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">${swatch}</svg>
+      <div>${label}<span class="sub">${sub}</span></div></label>`;
+  const dataRows=g=>DATA.filter(d=>d.group===g).map(d=>row('data:'+d.id,d.label,
+    d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false,d.desc)).join('');
+
+  /* The sheet you are looking at and what is drawn on it are one question, so the
+     base maps and the raster style overlays share a group — radios above the
+     hairline, checkboxes below it. */
+  let html=`<div class="grp"><h2 class="kicker gold">Map style</h2>`
+    +`<div id="base" role="radiogroup" aria-label="Base map">`
+    +STYLE_DEFS.map(s=>radioRow(s.id,s.label,s.sub,s.swatch,state.base===s.id)).join('')
+    +`</div><div class="grp-split" aria-hidden="true"></div>`+dataRows('Map style')+`</div>`;
+  html+=`<div class="grp"><h2 class="kicker gold">Markers &amp; counties</h2>`
     +BASE_DEFS.map(l=>row(l.id,l.label,l.sub,l.swatch,state.layers[l.id],l.desc)).join('')+`</div>`;
-  const groups=[...new Set(DATA.map(d=>d.group))];
-  groups.forEach(g=>{
-    html+=`<div class="grp"><h2 class="kicker gold">${g}</h2>`
-      +DATA.filter(d=>d.group===g).map(d=>row('data:'+d.id,d.label,
-        d.dynamic?d.sub+' · from zoom '+d.dynamic:d.sub,swatchFor(d),false,d.desc)).join('')+`</div>`;
+  [...new Set(DATA.map(d=>d.group))].filter(g=>g!=='Map style').forEach(g=>{
+    html+=`<div class="grp"><h2 class="kicker gold">${g}</h2>`+dataRows(g)+`</div>`;
   });
   el.innerHTML=html;
   el.querySelectorAll('input').forEach(i=>i.addEventListener('change',e=>{
     const key=e.target.dataset.layer;
+    if(!key){ setBase(e.target.value); return; }   // the base-map radios
     if(key.startsWith('data:')){
       const d=DATA.find(x=>x.id===key.slice(5));
       toggleData(d,e.target.checked,e.target.closest('.layer'));
@@ -1242,6 +1614,33 @@ function syncLayers(){
 }
 function toggle(layer,on){ if(on){if(!map.hasLayer(layer))layer.addTo(map);} else if(map.hasLayer(layer))map.removeLayer(layer); }
 
+/* ── near-miss recovery ──────────────────────────────────────
+   Screen-space, unlike the geographic nearestMarker() further down.
+   The canvas tolerance above widens each dot's hit box, but a tap can still land
+   wider than that — and on the roads base map the county polygon has no fill at
+   all (countyStyle), so there is nothing underneath to catch it and the tap dies.
+   Both cases end here: if the tap was plainly aimed at a marker, claim it. */
+function markerNearPoint(latlng){
+  if(!state.layers.markers||!state.keep) return null;
+  const p=map.latLngToLayerPoint(latlng), slop=COARSE?26:12;
+  let best=null,bd=slop*slop;
+  for(const c of mkRefs){
+    /* A dimmed-out marker is not what the user was aiming at. */
+    if(!state.keep(c._m)) continue;
+    const q=map.latLngToLayerPoint(c.getLatLng());
+    const d=(q.x-p.x)**2+(q.y-p.y)**2;
+    if(d<bd){bd=d;best=c._m;}
+  }
+  return best;
+}
+function claimNearby(latlng){
+  if(measure.on) return false;   /* a measurement point is never a marker tap */
+  const m=markerNearPoint(latlng);
+  if(!m) return false;
+  select(m,false);
+  return true;
+}
+
 /* ── marker filtering ────────────────────────────────────── */
 function markerKeep(){
   const q=document.getElementById('q').value.trim().toLowerCase();
@@ -1253,14 +1652,13 @@ function markerKeep(){
 }
 function applyFilters(){
   const keep=markerKeep();
+  state.keep=keep;   /* cached for nearestMarker, so a tap doesn't rebuild the closure */
   state.filtered=state.markers.filter(keep);
   document.getElementById('hdrCount').textContent=fmt(state.filtered.length);
-  const z=map.getZoom(), base=z<8?3:z<10?4.2:z<12?5.5:7;
+  const base=markerRadius(map.getZoom());
   mkRefs.forEach(c=>{
     const on=keep(c._m), act=state.sel===c._m;
-    c.setStyle({fillOpacity:on?.95:.1,opacity:on?(act?1:.7):.06,
-      color:act?INK:PAPER,weight:act?1.8:.7});
-    c.setRadius(act?base+2.6:base);
+    c.setStyle(markerPaint(c._m,{on,act,r:act?base+2.6:base}));
     if(act) c.bringToFront();
   });
   countyLayer.setStyle(countyStyle);
@@ -1389,10 +1787,20 @@ async function searchGazetteer(){
 }
 
 /* ── detail panel ────────────────────────────────────────── */
-function openPanel(html){document.getElementById('panelBody').innerHTML=html;
-  document.getElementById('panel').classList.add('open')}
+/* On mobile the panel is a bottom sheet, so "open" is a snap position rather than
+   a display toggle — it has to stay laid out to animate. The peek line repeats the
+   title, which is all you can see of the sheet at rest. */
+function openPanel(html){
+  document.getElementById('panelBody').innerHTML=html;
+  const el=document.getElementById('panel');
+  el.classList.add('open');
+  const h2=el.querySelector('#panelBody h2');
+  document.getElementById('panelPeek').textContent=h2?h2.textContent:'';
+  if(MOBILE.matches) raiseSheet('panel','half');
+}
 function closePanel(){
   document.getElementById('panel').classList.remove('open');
+  if(MOBILE.matches) sheets.panel.to('closed');
   state.sel=null; state.pick=null; state.pending=null; applyFilters(); writeHash();
 }
 
@@ -1424,6 +1832,15 @@ function select(m,fly){
   applyFilters();
   writeHash(true);   /* its own history entry, so Back returns to the map */
   if(fly) map.flyTo([m.lat,m.lon],15,{duration:.9});
+  /* The sheet covers the bottom half, which is where the marker you just tapped
+     usually is. After a flyTo, wait for it to land before nudging. */
+  if(MOBILE.matches){
+    /* 72px of top padding keeps it clear of the zoom control rather than jammed
+       against the top edge. */
+    const clear=()=>map.panInside([m.lat,m.lon],
+      {paddingTopLeft:[40,72],paddingBottomRight:[40,Math.round(innerHeight*.58)+16]});
+    if(fly) map.once('moveend',clear); else clear();
+  }
 }
 
 /* The PHMC export carries a full date for most markers; the rest have only a year. */
@@ -1517,7 +1934,11 @@ function showLandmark(d){
 let legendShut=false;
 function buildLegend(){
   const el=document.getElementById('legend');
-  const dot=c=>'<svg width="24" height="18" viewBox="0 0 24 18"><circle cx="12" cy="9" r="4" fill="'+c+'" stroke="#f3f2f2" stroke-width="1"/></svg>';
+  /* Mirrors markerPaint so the key is a faithful picture of the dot on the map —
+     a solid fill in its hue, or the paper-centred ring the Plaque type draws. */
+  const dot=s=>'<svg width="24" height="18" viewBox="0 0 24 18"><circle cx="12" cy="9" r="'
+    +(s.ring?4.4:4)+'" fill="'+(s.ring?PAPER:s.fill)+'" stroke="'+(s.ring?s.fill:PAPER)
+    +'" stroke-width="'+(s.ring?2:1)+'"/></svg>';
   const groups=new Map();
   /* A row's key is the rail checkbox it belongs to, so removing it can just fire that
      checkbox rather than repeat the teardown. Markers and peaks draw several rows off
@@ -1529,7 +1950,7 @@ function buildLegend(){
 
   if(state.layers.markers){
     groupKey.set('Historical markers','markers');
-    Object.entries(TYPE_COLOR).forEach(([t,c])=>add('Historical markers',dot(c),t+' marker'));
+    Object.entries(TYPE_STYLE).forEach(([t,s])=>add('Historical markers',dot(s),t+' marker'));
   }
   if(state.layers.peaks){
     groupKey.set('State landmarks','peaks');
@@ -1602,8 +2023,7 @@ function writeHash(push){
   if(hashLock||!state.feats.length) return;
   const c=map.getCenter();
   const on=DATA.filter(d=>state.on[d.id]).map(d=>d.id);
-  const base=document.querySelector('#base input:checked').value;
-  const bits=[map.getZoom(),c.lat.toFixed(4),c.lng.toFixed(4),base,on.join('.')];
+  const bits=[map.getZoom(),c.lat.toFixed(4),c.lng.toFixed(4),state.base,on.join('.')];
   /* The four BASE_DEFS layers live in state.layers, not state.on, so they need
      their own segment or a shared link silently drops them. Always written, so
      switching one OFF travels too; links without it fall back to the defaults. */
@@ -1754,7 +2174,7 @@ document.getElementById('share').addEventListener('click',async e=>{
   catch(err){ b.textContent='Copy failed'; announce('Copy failed'); }
   setTimeout(()=>{b.textContent=was},1400);
 });
-map.on('click',e=>{ if(measure.on) measureAdd(e.latlng); });
+map.on('click',e=>{ if(measure.on) measureAdd(e.latlng); else claimNearby(e.latlng); });
 map.on('dblclick',()=>{ if(measure.on){ measure.on=false;
   document.getElementById('measure').classList.remove('on');
   map.getContainer().style.cursor=''; } });
@@ -1785,28 +2205,168 @@ aboutModal.addEventListener('keydown',e=>{                        /* focus trap 
 addEventListener('keydown',e=>{ if(e.key==='Escape'&&aboutModal.classList.contains('open')) aboutSet(false); });
 if(!localStorage.getItem('aboutSeen')){ aboutSet(true); localStorage.setItem('aboutSeen','1'); }
 
-/* ── mobile drawer + resize ───────────────── */
+/* ── mobile bottom sheets + resize ─────────────────────────────────────────
+   Two draggable sheets — the filter rail and the detail panel — sharing one
+   controller, one scrim and one set of snap points. Only one is ever raised:
+   the old drawer sat at z-1050 over a z-600 panel, so opening the filters
+   buried whatever marker you had just tapped. */
 const railEl=document.getElementById('rail'), railHandle=document.getElementById('railHandle');
 const railLabel=document.getElementById('railHandleLabel');
+const panelEl=document.getElementById('panel'), scrimEl=document.getElementById('scrim');
 document.getElementById('layerCount').textContent=DATA.length;
 document.getElementById('layerTotal').textContent=DATA.length;
 const railLabelShut=railLabel.innerHTML;
-function railSet(on){
-  railEl.classList.toggle('open',on);
-  railHandle.setAttribute('aria-expanded',on);
-  if(on) railLabel.textContent='Close'; else railLabel.innerHTML=railLabelShut;
+/* Breakpoint read once from the stylesheet's own value rather than inferred from
+   a handle's computed display, which is what the old code did. */
+const MOBILE=matchMedia('(max-width:720px)');
+const FLICK=.45;   /* px per ms past which a drag counts as a flick */
+
+let scrimOwner=null;
+function scrimTo(a){
+  scrimEl.style.opacity=a.toFixed(3);
+  scrimEl.classList.toggle('on',a>.02);
 }
-railHandle.addEventListener('click',()=>railSet(!railEl.classList.contains('open')));
-document.getElementById('results').addEventListener('click',e=>{
-  if(e.target.closest('.res')&&getComputedStyle(railHandle).display!=='none') railSet(false);
+
+function makeSheet(el,{states,rest,onSettle}){
+  const grab=el.querySelector('.sheet-grab');
+  const snaps={closed:0,peek:0,half:0,full:0};
+  let cur=rest, drag=null;
+
+  function measure(){
+    const H=el.offsetHeight;
+    snaps.closed=0;
+    snaps.peek=grab.offsetHeight;
+    snaps.half=Math.round(H*.58);
+    snaps.full=H;
+  }
+  const px=n=>snaps[n]||0;
+  /* Scrim only earns its keep once the sheet is past half and the map is
+     mostly gone; below that it would just grey out the thing you're reading. */
+  function paint(v){
+    el.style.setProperty('--snap',Math.round(v)+'px');
+    if(scrimOwner&&scrimOwner!==el) return;
+    const span=snaps.full-snaps.half;
+    scrimTo(span>0?Math.max(0,Math.min(1,(v-snaps.half)/span))*.55:0);
+  }
+  function to(name,{animate=true}={}){
+    if(!states.includes(name)) name=rest;
+    cur=name;
+    scrimOwner=px(name)>snaps.half?el:(scrimOwner===el?null:scrimOwner);
+    if(!animate){
+      el.classList.add('dragging'); paint(px(name));
+      el.offsetHeight;                       /* flush before re-enabling */
+      el.classList.remove('dragging');
+    } else paint(px(name));
+    el.classList.toggle('up',name==='full');
+    if(onSettle) onSettle(name);
+  }
+
+  grab.addEventListener('pointerdown',e=>{
+    if(e.button||!MOBILE.matches) return;
+    grab.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    drag={y0:e.clientY,start:px(cur),last:e.clientY,t:performance.now(),v:0};
+  });
+  grab.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const now=performance.now(), dt=now-drag.t;
+    if(dt>0){ drag.v=(e.clientY-drag.last)/dt; drag.last=e.clientY; drag.t=now; }
+    paint(Math.max(0,Math.min(snaps.full,drag.start-(e.clientY-drag.y0))));
+  });
+  function release(e){
+    if(!drag) return;
+    const v=Math.max(0,Math.min(snaps.full,drag.start-(e.clientY-drag.y0))), vel=drag.v;
+    drag=null;
+    el.classList.remove('dragging');
+    const asc=states.map(n=>({n,p:px(n)})).sort((a,b)=>a.p-b.p);
+    let target;
+    if(Math.abs(vel)>FLICK){
+      /* A flick travels to the next stop in its direction however short it was. */
+      if(vel>0){ target=asc[0].n; for(const s of asc) if(s.p<v-2) target=s.n; }
+      else { target=asc[asc.length-1].n;
+             for(let i=asc.length-1;i>=0;i--) if(asc[i].p>v+2) target=asc[i].n; }
+    } else {
+      target=asc.reduce((b,s)=>Math.abs(s.p-v)<Math.abs(px(b)-v)?s.n:b,asc[0].n);
+    }
+    to(target);
+  }
+  grab.addEventListener('pointerup',release);
+  grab.addEventListener('pointercancel',release);
+
+  measure();
+  return {el,states,rest,measure,to,at:()=>cur,
+          /* Side-effect free: used when leaving mobile, where firing onSettle
+             would tear down a selection the desktop panel is still showing. */
+          reset(){ cur=rest; },
+          sync(){ measure(); to(cur,{animate:false}); }};
+}
+
+const sheets={
+  rail:makeSheet(railEl,{states:['peek','half','full'],rest:'peek',
+    onSettle(n){
+      railHandle.setAttribute('aria-expanded',String(n!=='peek'));
+      if(n==='peek') railLabel.innerHTML=railLabelShut; else railLabel.textContent='Close';
+    }}),
+  /* Flicking the sheet away or tapping the scrim has to do everything the ×
+     button does — clear the selection, drop the marker highlight and rewrite the
+     hash — or the map stays selected under a dismissed sheet. closePanel drops
+     .open before it snaps, so this cannot recurse. */
+  panel:makeSheet(panelEl,{states:['closed','half','full'],rest:'closed',
+    onSettle(n){ if(n==='closed'&&panelEl.classList.contains('open')) closePanel(); }})
+};
+
+/* Raising one sheet drops the other to its resting state. */
+function raiseSheet(which,name){
+  Object.entries(sheets).forEach(([k,s])=>{ if(k!==which) s.to(s.rest); });
+  sheets[which].to(name);
+}
+function mobileSheetsReset(){
+  Object.values(sheets).forEach(s=>{ s.el.classList.remove('up'); s.el.style.removeProperty('--snap'); });
+  /* The rail forgets how far it was pulled out — coming back to a phone width
+     with the drawer already wide open is startling. The panel keeps its position,
+     because it has to agree with the .open class the desktop card runs on. */
+  sheets.rail.reset();
+  scrimOwner=null; scrimTo(0);
+}
+
+railHandle.addEventListener('click',()=>{
+  if(!MOBILE.matches) return;
+  raiseSheet('rail',sheets.rail.at()==='peek'?'full':'peek');
 });
+scrimEl.addEventListener('click',()=>{
+  Object.values(sheets).forEach(s=>{ if(s.at()!==s.rest) s.to(s.rest); });
+});
+/* Ordered after the measure and About handlers so the topmost surface wins. */
+addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||!MOBILE.matches) return;
+  if(measure.on||aboutModal.classList.contains('open')) return;
+  if(sheets.panel.at()!=='closed'){ closePanel(); return; }
+  if(sheets.rail.at()!=='peek') sheets.rail.to('peek');
+});
+document.getElementById('results').addEventListener('click',e=>{
+  if(e.target.closest('.res')&&MOBILE.matches) sheets.rail.to('peek');
+});
+
 const footEl=document.getElementById('foot');
 function setFootH(){ document.documentElement.style.setProperty('--footH',footEl.offsetHeight+'px'); }
-setFootH();
+function setPeekH(){
+  document.documentElement.style.setProperty('--peekH',
+    (MOBILE.matches?document.getElementById('railGrab').offsetHeight:0)+'px');
+}
+function relayout(){
+  setFootH(); setPeekH();
+  if(MOBILE.matches) Object.values(sheets).forEach(s=>s.sync()); else mobileSheetsReset();
+}
+relayout();
 let rszT=null;
-new ResizeObserver(()=>{ setFootH();
+/* #foot as well as #stage: the footer used to wrap on narrow screens without
+   anything watching it, silently moving every bottom-anchored element. */
+const ro=new ResizeObserver(()=>{ relayout();
   clearTimeout(rszT); rszT=setTimeout(()=>map.invalidateSize(),150);
-}).observe(document.getElementById('stage'));
+});
+ro.observe(document.getElementById('stage'));
+ro.observe(footEl);
+MOBILE.addEventListener('change',relayout);
 document.getElementById('type').addEventListener('change',applyFilters);
 document.getElementById('county').addEventListener('change',e=>{
   applyFilters();
@@ -1814,7 +2374,6 @@ document.getElementById('county').addEventListener('change',e=>{
   if(f) map.fitBounds(L.geoJSON(f).getBounds(),{padding:[24,24]});
   else map.fitBounds(countyLayer.getBounds(),{padding:[10,10]});
 });
-document.querySelectorAll('#base input').forEach(r=>r.addEventListener('change',e=>setBase(e.target.value)));
 document.getElementById('close').addEventListener('click',closePanel);
 /* The parchment wash is what makes the state-level view; at street level it is
    just fog over the town names. Full through the county view, gone by the time
@@ -1829,8 +2388,9 @@ map.on('zoomend',()=>{
   toggle(labLayer,state.layers.labels&&map.getZoom()>=7);
   iconZoom();
   setWash();
-  const z=map.getZoom(), r=z<8?3:z<10?4.2:z<12?5.5:7;
-  mkRefs.forEach(c=>{if(state.sel!==c._m)c.setRadius(r)});
+  /* via markerPaint, not setRadius — rings carry their own +0.6 */
+  const z=map.getZoom(), r=markerRadius(z);
+  mkRefs.forEach(c=>{if(state.sel!==c._m)c.setRadius(markerPaint(c._m,{r}).radius)});
   document.querySelectorAll('.clabel').forEach(e=>e.style.fontSize=(z<8?11:z<10?13:15)+'px');
 });
 /* Refetching viewport layers on every settle would fire a burst of PASDA
