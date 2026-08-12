@@ -119,10 +119,6 @@ assets/og.jpg                     1200×630 social preview card
 
 ## Before going live
 
-- Replace `ko-fi.com/CHANGEME` with a real donation link (two spots in
-  `index.html`, one below).
-- Make `og:image` absolute — `https://<domain>/assets/og.jpg`. Twitter and some
-  other scrapers ignore relative image paths.
 - Street tiles come from OpenStreetMap's community tile server, and the railway
   overlay from OpenRailwayMap's. Both are fine for modest traffic; move to a
   provider with a usage allowance (MapTiler, Stadia) if the site gets popular.
@@ -134,4 +130,4 @@ the Commonwealth of Pennsylvania, the PHMC, or any other agency. All data is dra
 from public sources and presented as-is, with no warranty of accuracy or
 completeness; not for navigation, boundary, or safety decisions.
 
-Free, no ads. If it's useful: [☕ support the map](https://ko-fi.com/CHANGEME).
+Free, no ads. If it's useful: [☕ support the map](https://ko-fi.com/keystoneatlas).
