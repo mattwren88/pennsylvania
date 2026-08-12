@@ -314,10 +314,20 @@
     .sheet.dragging .sheet-grab{cursor:grabbing}
     .sheet-grab .grip{width:40px;height:4px;border-radius:2px;flex:none;
       background:color-mix(in srgb,var(--color-text) 30%,transparent)}
-    .sheet-toggle{display:flex;align-items:center;gap:7px;max-width:100%;
-      background:none;border:0;padding:0;cursor:pointer;font-family:var(--font-body);
-      font-size:13px;line-height:1.3;color:var(--color-accent-700)}
+    /* This strip is the only way into search and the layer list on a phone, and as
+       a bare line of text it was being read as a caption rather than a control.
+       Pill, border and a leading layers glyph make it look like the button it is. */
+    .sheet-toggle{display:flex;align-items:center;gap:8px;max-width:100%;
+      padding:9px 15px;border-radius:999px;cursor:pointer;
+      border:1px solid color-mix(in srgb,var(--color-accent) 50%,transparent);
+      background:color-mix(in srgb,var(--color-accent) 12%,var(--color-surface));
+      box-shadow:var(--shadow-sm);font-family:var(--font-body);
+      font-size:13.5px;line-height:1.3;color:var(--color-accent-700)}
+    .sheet-toggle .ico{flex:none;opacity:.9}
     .sheet-toggle .chev{transition:transform .25s ease;flex:none}
+    /* Open, the label is just "Close" — the layers glyph would be describing a
+       state the sheet is no longer in. */
+    .sheet.up .sheet-toggle .ico{display:none}
     .sheet.up .sheet-toggle .chev{transform:rotate(180deg)}
     /* The grab header's title IS the panel heading on mobile — openPanel copies
        the body's h2 into it, so that h2 is hidden rather than shown twice. Two
@@ -357,7 +367,7 @@
     <h1 class="nav-brand" style="font-size:19px;margin:0;font-weight:inherit">Keystone Atlas</h1>
     <span class="kicker" id="tagline" style="margin-left:-8px">A Layered Map of Pennsylvania</span>
     <span style="flex:1"></span>
-    <span class="kicker" aria-live="polite"><span class="count" id="hdrCount">—</span> <span id="hdrCountLabel">markers</span></span>
+    <span class="kicker" id="hdrCountWrap" aria-live="polite" hidden><span class="count" id="hdrCount">—</span> <span id="hdrCountLabel">markers</span></span>
     <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
   </header>
   <div id="body">
@@ -365,9 +375,11 @@
       <div class="sheet-grab" id="railGrab">
         <span class="grip" aria-hidden="true"></span>
         <button class="sheet-toggle" id="railHandle" aria-expanded="false" aria-controls="railBody">
+          <svg class="ico" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>
+          <span id="railHandleLabel">Search, filters &amp; <span id="layerCount">70</span> layers</span>
           <svg class="chev" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-          <span id="railHandleLabel">Search, filters &amp; <span id="layerCount">70</span> layers</span>
         </button>
       </div>
       <div class="sheet-body" id="railBody">
@@ -1685,14 +1697,15 @@ function markerKeep(){
     &&(!dec||(m.y&&m.y>=dec&&m.y<dec+10))
     &&(!q||m.n.toLowerCase().includes(q)||m.x.toLowerCase().includes(q)||m.l.toLowerCase().includes(q));
 }
-/* The marker layer defaults to off, so "2,585 markers shown" over an empty map is
-   a promise the map isn't keeping. Only claim "shown" when they are actually drawn.
+/* The count describes the marker layer, so it only exists while that layer is on —
+   a figure in the header for something not drawn reads as a broken promise. The
+   layer defaults off, so this starts hidden (see the hidden attribute on the span).
    Called from syncLayers too, which is what toggling the layer runs. */
 function updateCount(){
   const n=state.filtered.length;
+  document.getElementById('hdrCountWrap').hidden=!state.layers.markers;
   document.getElementById('hdrCount').textContent=fmt(n);
-  document.getElementById('hdrCountLabel').textContent=
-    (n===1?'marker':'markers')+(state.layers.markers?' shown':'');
+  document.getElementById('hdrCountLabel').textContent=n===1?'marker shown':'markers shown';
 }
 function applyFilters(){
   const keep=markerKeep();
