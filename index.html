@@ -1057,9 +1057,10 @@ const DATA=[
     ['Elevation',p.ELEV_IN_FT>0?fmt(p.ELEV_IN_FT)+' ft':null],
     ['USGS quad',val(p.MAP_NAME)],
     ['Name logged',ymd(p.DATE_CREATED)],['Record last edited',ymd(p.DATE_EDITED)]],
-  links:p=>[['Search ExplorePAhistory','https://explorepahistory.com/keyword.php?keyWord='
-      +encodeURIComponent(clean(p.FEATURE_NAME))],
-    ['Historical topo maps',p._lat?'https://ngmdb.usgs.gov/topoview/viewer/#13/'
+  /* ExplorePAhistory sat here too until its search endpoint 404'd; see the note
+     in select(). TopoView is the better link for a vanished place anyway — it
+     opens the quad sheet the feature was still drawn on. */
+  links:p=>[['Historical topo maps',p._lat?'https://ngmdb.usgs.gov/topoview/viewer/#13/'
       +p._lat.toFixed(4)+'/'+p._lon.toFixed(4):null]],
   text:()=>'The gazetteer keeps the name but records the feature itself as gone. It carries no '
     +'account of what happened — only the name, where it stood, and when the USGS logged it. '
