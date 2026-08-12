@@ -17,8 +17,8 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 **Historical markers** — 2,585 with coordinates, merged from the PHMC CSV export
 and the live PHMC map service (neither is a superset of the other). Full marker
-text, dedication year, standing/missing status, and links out to Google Maps,
-ExplorePAhistory and HMdb.
+text, dedication year, standing/missing status, and links out to Google Maps and
+HMdb.
 
 **Layers**, lazy-loaded the first time you tick them:
 
@@ -44,11 +44,10 @@ satellite — as one-of-four switches, with the topo quads, quad boundaries and
 railway overlays stacking on top of whichever you pick.
 
 **Tools** — search across markers, every loaded layer and the USGS gazetteer at
-once; filter by county, marker type and dedication decade; a distance measure; a
-collapsible legend that lists what is drawn and can switch any of it back off;
-and a shareable URL that encodes the view, the base map, the active layers, the
-decade and the selected marker or feature. With nothing searched, the results
-pane lists the markers dedicated on today's date.
+once; filter by county and dedication decade; a distance measure; a collapsible
+legend that lists what is drawn and can switch any of it back off; and a
+shareable URL that encodes the view, the base map, the active layers, the decade
+and the selected marker or feature.
 
 ## Data sources
 

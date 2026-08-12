@@ -358,7 +358,7 @@
     <h1 class="nav-brand" style="font-size:19px;margin:0;font-weight:inherit">Keystone Atlas</h1>
     <span class="kicker" id="tagline" style="margin-left:-8px">A Layered Map of Pennsylvania</span>
     <span style="flex:1"></span>
-    <span class="kicker" aria-live="polite"><span class="count" id="hdrCount">—</span> markers shown</span>
+    <span class="kicker" aria-live="polite"><span class="count" id="hdrCount">—</span> <span id="hdrCountLabel">markers</span></span>
     <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
   </header>
   <div id="body">
@@ -447,7 +447,7 @@
       <li><b>Map style</b> heads the layer list: pick one of four sheets to draw on — roads, terrain,
         plain paper or satellite — and stack the topo quads and railways over it.</li>
       <li><b>Layers</b> load the first time you tick them; large ones fetch only what the viewport covers.</li>
-      <li><b>Filter</b> markers by county, type, and dedication decade.</li>
+      <li><b>Filter</b> markers by county and dedication decade.</li>
       <li><b>Measure</b> draws a running distance along as many points as you click.</li>
       <li><b>Copy link</b> captures the view, base map, active layers and decade in a shareable URL.</li>
     </ul>
@@ -1553,7 +1553,10 @@ async function mergePhmc(){
     const u=PASDA+'PHMC/MapServer/0/query?where=1%3D1&outFields='
       +encodeURIComponent('Name,County,Location,Dedicated,Marker_Typ,Missing_,Categories,Marker_Tex')
       +'&returnGeometry=true&outSR=4326&f=geojson&resultRecordCount=3000';
-    const j=await (await fetch(u)).json();
+    /* boot() awaits this, so a hanging PASDA holds up first paint indefinitely —
+       the catch below covers the service being down but not it being slow. The
+       CSV markers are already loaded; timing out just forfeits the extra ones. */
+    const j=await (await fetch(u,{signal:AbortSignal.timeout(8000)})).json();
     let added=0;
     (j.features||[]).forEach(f=>{
       const p=f.properties||{}, g=f.geometry;
@@ -1642,6 +1645,7 @@ function syncLayers(){
   countyLayer.setStyle(countyStyle);
   reorder();
   buildLegend();
+  updateCount();
 }
 function toggle(layer,on){ if(on){if(!map.hasLayer(layer))layer.addTo(map);} else if(map.hasLayer(layer))map.removeLayer(layer); }
 
@@ -1681,11 +1685,20 @@ function markerKeep(){
     &&(!dec||(m.y&&m.y>=dec&&m.y<dec+10))
     &&(!q||m.n.toLowerCase().includes(q)||m.x.toLowerCase().includes(q)||m.l.toLowerCase().includes(q));
 }
+/* The marker layer defaults to off, so "2,585 markers shown" over an empty map is
+   a promise the map isn't keeping. Only claim "shown" when they are actually drawn.
+   Called from syncLayers too, which is what toggling the layer runs. */
+function updateCount(){
+  const n=state.filtered.length;
+  document.getElementById('hdrCount').textContent=fmt(n);
+  document.getElementById('hdrCountLabel').textContent=
+    (n===1?'marker':'markers')+(state.layers.markers?' shown':'');
+}
 function applyFilters(){
   const keep=markerKeep();
   state.keep=keep;   /* cached for nearestMarker, so a tap doesn't rebuild the closure */
   state.filtered=state.markers.filter(keep);
-  document.getElementById('hdrCount').textContent=fmt(state.filtered.length);
+  updateCount();
   const base=markerRadius(map.getZoom());
   mkRefs.forEach(c=>{
     const on=keep(c._m), act=state.sel===c._m;
@@ -1813,6 +1826,11 @@ function select(m,fly){
     if(cb) cb.checked=true;
     syncLayers();
   }
+  /* HMdb needs Search=Keyword spelled out — given SearchFor alone it falls back to
+     Search=State and returns all 15,902 Pennsylvania markers instead. With it, a
+     distinctive name redirects straight to that marker's own page. ExplorePAhistory
+     used to sit beside it; that site is now a static archive with no search endpoint
+     and a marker-id scheme unrelated to PHMC's, so there is no URL left to build. */
   openPanel(`
     <div class="kicker gold">${esc(m.t)} marker${m.y?' · dedicated '+dedicated(m):''}</div>
     <h2>${esc(m.n)}</h2>
@@ -1825,9 +1843,8 @@ function select(m,fly){
       <dt>PHMC no.</dt><dd>${esc(m.id||'—')}</dd>
     </dl>
     <div style="margin-top:var(--space-3);display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn btn-primary" href="https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lon}" target="_blank" rel="noopener" style="border-bottom:0">Directions</a>
-      <a class="btn btn-secondary" href="https://explorepahistory.com/keyword.php?keyWord=${encodeURIComponent(m.n)}" target="_blank" rel="noopener" style="border-bottom:0">ExplorePAhistory</a>
-      <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?SearchFor=${encodeURIComponent(m.n)}&State=Pennsylvania" target="_blank" rel="noopener" style="border-bottom:0">HMdb</a>
+      <a class="btn btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}" target="_blank" rel="noopener" style="border-bottom:0">Directions</a>
+      <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?Search=Keyword&SearchFor=${encodeURIComponent(m.n)}" target="_blank" rel="noopener" style="border-bottom:0">HMdb</a>
     </div>`);
   applyFilters();
   writeHash(true);   /* its own history entry, so Back returns to the map */
@@ -2203,7 +2220,12 @@ aboutModal.addEventListener('keydown',e=>{                        /* focus trap 
   else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); }
 });
 addEventListener('keydown',e=>{ if(e.key==='Escape'&&aboutModal.classList.contains('open')) aboutSet(false); });
-if(!localStorage.getItem('aboutSeen')){ aboutSet(true); localStorage.setItem('aboutSeen','1'); }
+/* Blocking all cookies makes even a read throw SecurityError, and this runs at
+   top level ahead of boot() — unguarded, it takes the whole map down with it.
+   Without storage there is no way to remember, so the box shows every visit. */
+try{
+  if(!localStorage.getItem('aboutSeen')){ aboutSet(true); localStorage.setItem('aboutSeen','1'); }
+}catch(err){ aboutSet(true); }
 
 /* ── mobile bottom sheets + resize ─────────────────────────────────────────
    Two draggable sheets — the filter rail and the detail panel — sharing one
@@ -2405,7 +2427,14 @@ map.on('moveend',()=>{
     });
   },350);
 });
-boot();
+/* Nothing downstream of a failed boot can draw, so the loading screen has to stop
+   claiming it is still working — it covers the map and would otherwise sit there
+   saying "Drawing the Commonwealth…" forever. */
+boot().catch(err=>{
+  console.error('boot failed',err);
+  const el=document.getElementById('loading');
+  if(el) el.textContent='Could not load the map — check your connection and reload.';
+});
 </script>
 </body>
 </html>
