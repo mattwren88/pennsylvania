@@ -222,7 +222,14 @@
   #aboutCard{position:relative;width:min(640px,100%);max-height:85vh;overflow-y:auto;
     background:var(--color-surface);border:1px solid var(--color-divider);
     border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:var(--space-6) var(--space-8)}
-  #aboutCard h2{font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1.1;margin:0 0 2px}
+  /* The favicon pin, locked up with the About title and beside the brand. The
+     nav's own gap is too wide to read as a lockup, hence the pull. */
+  .about-head{display:flex;align-items:center;gap:var(--space-3);margin-right:32px}
+  .about-mark{height:36px;width:auto;flex:none}
+  .nav-mark{height:21px;width:auto;flex:none;margin-right:-8px}
+  #aboutCard .about-sub{font-family:var(--font-heading);font-size:15px;line-height:1.3;
+    margin:3px 0 10px;color:color-mix(in srgb,var(--color-text) 72%,transparent)}
+  #aboutCard h2{font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.1;margin:0}
   #aboutCard h3{font-family:var(--font-heading);font-weight:600;font-size:17px;margin:var(--space-4) 0 4px;
     padding-bottom:2px;border-bottom:1px solid var(--color-divider)}
   #aboutCard p,#aboutCard ul{font-size:13.5px;line-height:1.62;margin:6px 0}
@@ -338,6 +345,10 @@
 <div id="announce" class="sr-only" aria-live="polite"></div>
 <div id="app">
   <header class="nav">
+    <svg class="nav-mark" viewBox="10.4 3.4 43.2 55.1" aria-hidden="true">
+      <path d="M32 44.5V55" stroke="var(--color-text)" stroke-width="5" stroke-linecap="round"/>
+      <path d="M16.25 4H47.75L43.99 12.58H53L42.5 44.51H21.5L11 12.58H20.01Z" fill="var(--color-accent)"/>
+    </svg>
     <h1 class="nav-brand" style="font-size:19px;margin:0;font-weight:inherit">Keystone Atlas</h1>
     <span class="kicker" id="tagline" style="margin-left:-8px">A Layered Map of Pennsylvania</span>
     <span style="flex:1"></span>
@@ -413,8 +424,14 @@
 <div id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
   <div id="aboutCard">
     <button id="aboutClose" aria-label="Close"><span aria-hidden="true">×</span></button>
-    <div class="kicker gold">Keystone Atlas</div>
-    <h2 id="aboutTitle">A layered map of Pennsylvania</h2>
+    <div class="about-head">
+      <svg class="about-mark" viewBox="10.4 3.4 43.2 55.1" aria-hidden="true">
+        <path d="M32 44.5V55" stroke="var(--color-text)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M16.25 4H47.75L43.99 12.58H53L42.5 44.51H21.5L11 12.58H20.01Z" fill="var(--color-accent)"/>
+      </svg>
+      <h2 id="aboutTitle">Keystone Atlas</h2>
+    </div>
+    <p class="about-sub">A layered map of Pennsylvania</p>
     <p>Every Pennsylvania historical marker with a known location — 2,585 of them, merged from the
       PHMC's export and its live map service — plus seventy layers of parks, trails, waterways,
       boundaries, geology, mine workings, natural landmarks and vanished places, drawn over real
