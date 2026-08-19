@@ -27,7 +27,10 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;overflow:hidden}
-  a{color:var(--color-accent-700);text-decoration:none;border-bottom:1px solid var(--color-divider)}
+  /* The underline is a border, so it has to be excluded from links styled as
+     buttons — otherwise it overrides the button's own bottom edge and leaves the
+     box open at the bottom. */
+  a:not(.btn){color:var(--color-accent-700);text-decoration:none;border-bottom:1px solid var(--color-divider)}
   a:hover{color:var(--color-accent);border-bottom-color:var(--color-accent)}
   #app{height:100vh;display:grid;grid-template-rows:auto 1fr auto}
   #body{display:grid;grid-template-columns:344px 1fr;min-height:0}
@@ -37,9 +40,13 @@
         background:color-mix(in srgb, var(--color-surface) 60%, var(--color-bg))}
   .rail-pad{padding:var(--space-3) var(--space-4)}
   #panes{flex:none}
-  .kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  .kicker{font-size:var(--text-2xs);letter-spacing:.13em;text-transform:uppercase;
           color:color-mix(in srgb,var(--color-text) 72%, transparent);font-family:var(--font-body)}
-  .kicker.gold{color:var(--color-accent-700)}
+  /* Gold kickers are eyebrows over something — a section, a panel title, the
+     legend — so they carry more weight than a plain meta kicker and step up a
+     size; the tracking eases off a touch so the larger caps don't sprawl. */
+  .kicker.gold{color:var(--color-accent-700);font-size:var(--text-eyebrow);
+    letter-spacing:.09em;font-weight:600}
   /* Section headers carry a small flat icon — svgIcon() is for the map and always
      draws its chip circle, so these are hand-written like the chevrons. */
   .sec{display:flex;align-items:center;gap:6px}
@@ -52,8 +59,8 @@
   .grp{margin-top:var(--space-3)}
   .grp:first-child{margin-top:0}
   .layer{display:grid;grid-template-columns:14px 24px 1fr;align-items:start;gap:8px;
-         padding:5px 0;cursor:pointer;font-size:13px;line-height:1.3;position:relative}
-  .layer .i{font-size:10px;margin-left:4px;vertical-align:1px;
+         padding:6px 0;cursor:pointer;font-size:var(--text-base);line-height:1.35;position:relative}
+  .layer .i{font-size:var(--text-2xs);margin-left:4px;vertical-align:1px;
             color:color-mix(in srgb,var(--color-text) 45%,transparent)}
   .layer:hover .i{color:var(--color-accent-700)}
   /* Anchored below the row, not beside it — the rail scrolls, so a sideways
@@ -61,16 +68,26 @@
   .layer .desc{position:absolute;left:0;right:0;top:100%;z-index:900;margin-top:2px;
     background:var(--color-surface);border:1px solid var(--color-divider);
     border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:8px 10px;
-    font-size:11.5px;line-height:1.45;color:var(--color-text);
-    opacity:0;pointer-events:none;transition:opacity .12s}
-  .layer:hover .desc,.layer:focus-within .desc{opacity:1}
+    font-size:var(--text-sm);line-height:1.45;color:var(--color-text);
+    opacity:0;pointer-events:none;transition:opacity .12s .3s}
+  /* Held on for a beat after the pointer leaves, so skimming down the list doesn't
+     strobe. Appearing is the slow half instead — .18s of hover before it commits. */
+  .layer:hover .desc{opacity:1;transition-delay:.18s}
+  /* :focus-visible, not :focus-within — a mouse click on the checkbox focuses the
+     row, and a plain :focus-within desc then stays up until you click elsewhere.
+     Keyboard focus still opens it. */
+  .layer:has(:focus-visible) .desc{opacity:1;transition-delay:0s}
+  /* Hover is not recomputed while the pointer sits still, so a desc left open by a
+     scroll stays open until the next mouse move. Suppress through the scroll and
+     release on that move. */
+  #railBody.scrolling .layer .desc{opacity:0;transition-delay:0s}
   .layer input{appearance:none;width:14px;height:14px;margin:3px 0 0;border-radius:2px;
                border:1.5px solid var(--color-divider);background:transparent;cursor:pointer}
   .layer:hover input{border-color:var(--color-accent)}
   .layer input:checked{border-color:var(--color-accent);background:var(--color-accent);
     box-shadow:inset 0 0 0 2px var(--color-bg)}
   .layer svg{margin-top:3px}
-  .layer .sub{display:block;font-size:11px;line-height:1.35;margin-top:1px;
+  .layer .sub{display:block;font-size:var(--text-xs);line-height:1.35;margin-top:1px;
               color:color-mix(in srgb,var(--color-text) 72%, transparent)}
   .layer.busy .sub::after{content:' · loading…';color:var(--color-accent-700)}
   .layer.fail .sub::after{content:' · could not load';color:var(--color-accent-800)}
@@ -88,8 +105,8 @@
   .res{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--color-divider);
        padding:9px var(--space-4);cursor:pointer;font-family:var(--font-body);color:inherit}
   .res:hover{background:color-mix(in srgb,var(--color-accent) 8%, transparent)}
-  .res b{font-family:var(--font-heading);font-weight:600;font-size:15px;display:block;line-height:1.2}
-  .res span{font-size:11px;letter-spacing:.03em;color:color-mix(in srgb,var(--color-text) 72%, transparent);
+  .res b{font-family:var(--font-heading);font-weight:600;font-size:var(--text-lg);display:block;line-height:1.2}
+  .res span{font-size:var(--text-xs);letter-spacing:.03em;color:color-mix(in srgb,var(--color-text) 72%, transparent);
             font-variant-numeric:tabular-nums}
   .res.sel{background:color-mix(in srgb,var(--color-accent) 14%, transparent)}
   #stage{position:relative;min-height:0;overflow:hidden}
@@ -117,7 +134,7 @@
   .leaflet-control-attribution{background:color-mix(in srgb,var(--color-surface) 82%, transparent)!important;
     font-family:var(--font-body);font-size:11px;color:color-mix(in srgb,var(--color-text) 75%,transparent)}
   .leaflet-control-attribution a{border-bottom:0}
-  .leaflet-tooltip{font-family:var(--font-body);font-size:11.5px;border-radius:2px;
+  .leaflet-tooltip{font-family:var(--font-body);font-size:var(--text-2xs);border-radius:2px;
     border:1px solid var(--color-divider);box-shadow:var(--shadow-sm)}
   .clabel{background:none;border:0;box-shadow:none;padding:0;font-family:var(--font-heading);font-weight:500;
     color:color-mix(in srgb,var(--color-text) 85%,transparent);white-space:nowrap;
@@ -135,9 +152,9 @@
     border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:var(--space-4);display:none}
   #panel.open{display:block}
   #panel h2{font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1.12;margin:8px 0 2px}
-  #panel .body{font-size:13.5px;line-height:1.62;text-align:justify;hyphens:auto;margin:var(--space-3) 0 0}
+  #panel .body{font-size:var(--text-sm);line-height:1.62;text-align:justify;hyphens:auto;margin:var(--space-3) 0 0}
   #panel .loc{font-size:12px;line-height:1.5;color:color-mix(in srgb,var(--color-text) 75%,transparent);margin-top:6px}
-  #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);margin:var(--space-3) 0 0;font-size:11.5px}
+  #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px var(--space-3);margin:var(--space-3) 0 0;font-size:var(--text-2xs)}
   #panel dt{letter-spacing:.1em;text-transform:uppercase;font-size:9.5px;padding-top:2px;
             color:color-mix(in srgb,var(--color-text) 72%,transparent)}
   #panel dd{margin:0;font-variant-numeric:tabular-nums}
@@ -180,19 +197,19 @@
     background:color-mix(in srgb,var(--color-accent) 12%, var(--color-surface))}
   #timeline{display:none;flex-direction:column;gap:3px}
   #timeline.on{display:flex}
-  .tl-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px}
-  #tlLabel{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:14px}
+  .tl-head{display:flex;justify-content:space-between;align-items:baseline;font-size:var(--text-xs)}
+  #tlLabel{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:var(--text-md)}
   #tl{appearance:none;width:100%;height:16px;background:none;cursor:pointer}
   #tl::-webkit-slider-runnable-track{height:2px;background:var(--color-divider)}
   #tl::-webkit-slider-thumb{appearance:none;width:13px;height:13px;margin-top:-5.5px;border-radius:50%;
     background:var(--color-accent);border:2px solid var(--color-bg)}
   #tl::-moz-range-track{height:2px;background:var(--color-divider)}
   #tl::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--color-accent);border:2px solid var(--color-bg)}
-  .res .src{float:right;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  .res .src{float:right;font-size:var(--text-2xs);letter-spacing:.1em;text-transform:uppercase;
     color:color-mix(in srgb,var(--color-text) 72%,transparent)}
   .grp-head{padding:8px var(--space-4) 4px;background:color-mix(in srgb,var(--color-accent) 5%,transparent);
     border-bottom:1px solid var(--color-divider)}
-  .count{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:15px}
+  .count{font-variant-numeric:tabular-nums;font-family:var(--font-heading);font-size:var(--text-md)}
   #loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-heading);z-index:700;
     font-size:17px;color:color-mix(in srgb,var(--color-text) 72%,transparent);background:var(--color-bg)}
   :focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
@@ -215,14 +232,14 @@
   .about-head{display:flex;align-items:center;gap:var(--space-3);margin-right:32px}
   .about-mark{height:36px;width:auto;flex:none}
   .nav-mark{height:21px;width:auto;flex:none;margin-right:-8px}
-  #aboutCard .about-sub{font-family:var(--font-heading);font-size:15px;line-height:1.3;
+  #aboutCard .about-sub{font-family:var(--font-heading);font-size:var(--text-md);line-height:1.3;
     margin:3px 0 10px;color:color-mix(in srgb,var(--color-text) 72%,transparent)}
-  #aboutCard h2{font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.1;margin:0}
-  #aboutCard h3{font-family:var(--font-heading);font-weight:600;font-size:17px;margin:var(--space-4) 0 4px;
+  #aboutCard h2{font-family:var(--font-heading);font-weight:600;font-size:var(--text-4xl);line-height:1.1;margin:0}
+  #aboutCard h3{font-family:var(--font-heading);font-weight:600;font-size:var(--text-lg);margin:var(--space-4) 0 4px;
     padding-bottom:2px;border-bottom:1px solid var(--color-divider)}
-  #aboutCard p,#aboutCard ul{font-size:13.5px;line-height:1.62;margin:6px 0}
+  #aboutCard p,#aboutCard ul{font-size:var(--text-base);line-height:1.62;margin:6px 0}
   #aboutCard ul{padding-left:1.2em}
-  #aboutCard .fine{font-size:12px;color:color-mix(in srgb,var(--color-text) 75%,transparent)}
+  #aboutCard .fine{font-size:var(--text-xs);color:color-mix(in srgb,var(--color-text) 75%,transparent)}
   /* The one ask in the whole modal, so it gets a panel instead of a paragraph.
      It sits after the data caveats and before Legal — the disclaimer should be
      what the reader closes on, not the collection plate. */
@@ -230,18 +247,18 @@
     border:1px solid color-mix(in srgb,var(--color-accent) 45%,transparent);
     border-radius:var(--radius-lg);
     background:color-mix(in srgb,var(--color-accent) 7%,transparent)}
-  #aboutCard .support-box h3{margin:0 0 6px;padding-bottom:0;border-bottom:0;font-size:19px}
+  #aboutCard .support-box h3{margin:0 0 6px;padding-bottom:0;border-bottom:0}
   .support-box .btn{display:inline-block;margin:var(--space-3) 0 6px;padding:10px 18px;
     border:0;border-radius:var(--radius-md);background:var(--color-accent);
-    color:var(--color-bg);font-family:var(--font-heading);font-size:15px;
+    color:var(--color-bg);font-family:var(--font-heading);font-size:var(--text-md);
     font-weight:var(--font-heading-weight);line-height:1.2;cursor:pointer;transition:background .15s}
   .support-box .btn:hover{background:var(--color-accent-600);color:var(--color-bg)}
   /* The emoji swallows the following word space at this size, so the gap is explicit. */
   .support-box .btn span{margin-right:7px}
-  #aboutCard .support-box .support-note{font-size:12px;margin:0;
+  #aboutCard .support-box .support-note{font-size:var(--text-xs);margin:0;
     color:color-mix(in srgb,var(--color-text) 72%,transparent)}
   #aboutClose{position:absolute;top:10px;right:10px;background:none;border:0;cursor:pointer;
-    font-size:18px;line-height:1;padding:4px 6px;border-radius:var(--radius-md);
+    font-size:var(--text-lg);line-height:1;padding:4px 6px;border-radius:var(--radius-md);
     color:color-mix(in srgb,var(--color-text) 70%,transparent)}
   #aboutClose:hover{color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)}
   .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
@@ -322,7 +339,7 @@
       border:1px solid color-mix(in srgb,var(--color-accent) 50%,transparent);
       background:color-mix(in srgb,var(--color-accent) 12%,var(--color-surface));
       box-shadow:var(--shadow-sm);font-family:var(--font-body);
-      font-size:13.5px;line-height:1.3;color:var(--color-accent-700)}
+      font-size:var(--text-sm);line-height:1.3;color:var(--color-accent-700)}
     .sheet-toggle .ico{flex:none;opacity:.9}
     .sheet-toggle .chev{transition:transform .25s ease;flex:none}
     /* Open, the label is just "Close" — the layers glyph would be describing a
@@ -333,7 +350,7 @@
        the body's h2 into it, so that h2 is hidden rather than shown twice. Two
        lines are allowed: only the rail's grab height feeds --peekH, so a long
        marker name growing this header costs nothing. */
-    .sheet-title{font-family:var(--font-heading);font-weight:600;font-size:18px;
+    .sheet-title{font-family:var(--font-heading);font-weight:600;font-size:var(--text-lg);
       line-height:1.18;text-align:center;text-wrap:balance;color:var(--color-text);
       display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
     #panel.sheet #panelBody h2{display:none}
@@ -348,9 +365,9 @@
     #footAff,#footAffDot{display:none}
     #results{max-height:min(34dvh,300px)}
     .layer .desc{position:static;opacity:1;background:none;border:0;box-shadow:none;
-      padding:0;margin:2px 0 1px;display:block;font-size:11.5px;line-height:1.4;
+      padding:0;margin:2px 0 1px;display:block;font-size:var(--text-sm);line-height:1.4;
       color:color-mix(in srgb,var(--color-text) 92%,transparent)}
-    .layer .sub{font-size:10.5px;letter-spacing:.02em}
+    .layer .sub{font-size:var(--text-xs);letter-spacing:.02em}
     .layer .i{display:none}
   }
 </style>
@@ -364,11 +381,11 @@
       <path d="M32 44.5V55" stroke="var(--color-text)" stroke-width="5" stroke-linecap="round"/>
       <path d="M16.25 4H47.75L43.99 12.58H53L42.5 44.51H21.5L11 12.58H20.01Z" fill="var(--color-accent)"/>
     </svg>
-    <h1 class="nav-brand" style="font-size:19px;margin:0;font-weight:inherit">Keystone Atlas</h1>
+    <h1 class="nav-brand" style="font-size:var(--text-3xl);margin:0;font-weight:inherit">Keystone Atlas</h1>
     <span class="kicker" id="tagline" style="margin-left:-8px">A Layered Map of Pennsylvania</span>
     <span style="flex:1"></span>
     <span class="kicker" id="hdrCountWrap" aria-live="polite" hidden><span class="count" id="hdrCount">—</span> <span id="hdrCountLabel">markers</span></span>
-    <button class="btn btn-secondary" id="about" style="font-size:12px;padding:5px 11px">About</button>
+    <button class="btn btn-secondary" id="about" style="font-size:var(--text-sm);padding:6px 13px">About</button>
   </header>
   <div id="body">
     <aside id="rail" class="sheet" aria-label="Search and layers">
@@ -591,7 +608,24 @@ const pctile=v=>{const s=ord(v);return s?s+' pctile':null};
 const ymd=v=>{const n=typeof v==='number'?v:Date.parse(v);
   if(!isFinite(n)||!n)return null;
   return new Date(n).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'})};
-const url=u=>{const t=val(u);if(!t)return null;return /^https?:/i.test(t)?t:'https://'+t};
+/* Every *.state.pa.us address in these datasets predates the pa.gov migration and
+   now lands on an agency homepage rather than the page the record meant. There is
+   no per-record mapping back, so the link is dropped instead of shown as a lie. */
+const DEAD_HOST=/(^|\/\/|\.)[a-z0-9-]+\.state\.pa\.us(\/|$)/i;
+const url=u=>{const t=val(u);if(!t)return null;
+  const h=/^https?:/i.test(t)?t:'https://'+t;
+  return DEAD_HOST.test(h)?null:h};
+/* Municipal and trail-club websites in the PASDA records rot badly — about two in
+   three no longer reach the page the record meant, and the page cannot test them at
+   load time (no CORS on those hosts). tools/check-links.py sweeps them and commits
+   the survivors; anything not on that list is shown as no link at all. Until the file
+   lands, checked() passes everything through rather than blanking every link. */
+let LIVE=null;
+const checked=u=>{const t=url(u); if(!t||!LIVE) return t;
+  return LIVE.has(t)?t:null};
+const parkPage=n=>n?'https://www.pa.gov/agencies/dcnr/recreation/where-to-go/state-parks/find-a-park/'
+  +n.toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9 ]/g,'').trim().replace(/\s+/g,'-')
+  +'-state-park':null;
 /* PASDA activity columns are undocumented codes; 1 reads as permitted, 2 as not. */
 const yes=v=>v===1||/^yes$/i.test(String(v||'').trim());
 const permits=(p,map)=>Object.entries(map).filter(([k])=>yes(p[k])).map(([,l])=>l);
@@ -625,7 +659,11 @@ const DATA=[
   style:{color:'#2f6b45',weight:1.6,fillColor:'#6fa87c',fillOpacity:.38},
   name:p=>p.PARK_NAME,sub2:p=>val(p.TYPE)||'State park',
   rows:p=>[['Acres',acres(p.GIS_ACRE)],['County',val(p.COUNTY)],['Also known as',val(p.NICKNAMES)]],
-  links:p=>[['Official park page',url(p.WEBLINK)]]},
+  /* Not p.WEBLINK — PASDA still serves the retired dcnr.state.pa.us/stateparks
+     addresses, and every one of them now lands on the DCNR homepage. The current
+     pa.gov page is a plain slug of the park name; all 124 were checked against it,
+     and a wrong slug 404s rather than redirecting, so a future rename fails loudly. */
+  links:p=>[['Official park page',parkPage(p.PARK_NAME)]]},
  {group:'Protected land',id:'forests',label:'State forests',sub:'20 forest districts, 670 parcels',
   src:'DCNR/MapServer/6',fields:'SF_Name,Acreage',simplify:0.0012,kind:'poly',
   style:{color:'#1e4d33',weight:1.2,dashArray:'4 3',fillColor:'#4a8a5e',fillOpacity:.26},
@@ -656,7 +694,7 @@ const DATA=[
     CROSS_COUN:'Cross-country skiing',INTERPRETI:'Interpretive',ATV:'ATV',
     SNOWMOBILE:'Snowmobile',OFF_ROAD_M:'Off-road motorcycle',FOUR_WHEEL:'Four-wheel drive'});
     if(yes(p.ADA_ACCESS)) c.push('ADA accessible'); return c;},
-  links:p=>[['Trail manager',url(p.MGMT_WEBSI)]]},
+  links:p=>[['Trail manager',checked(p.MGMT_WEBSI)]]},
  {group:'Water',id:'trout',desc:'Streams the Fish &amp; Boat Commission raises and releases trout into each season — not where trout occur naturally.',label:'Stocked trout waters',sub:'1,061 stocked stream reaches',
   src:'PAFishBoat/MapServer/3',fields:'GNIS_Name,County,Length_MI_,Limits',simplify:0.0006,kind:'line',
   style:{color:'#2f6d8f',weight:1.8},
@@ -813,7 +851,7 @@ const DATA=[
     Sledding:'Sledding',Ice_Skatin:'Ice skating',CrossCount:'Cross-country skiing',
     Rock_Climb:'Rock climbing',Scenic_Vie:'Scenic view',Wildlife_W:'Wildlife watching',
     Fitness_Eq:'Fitness equipment',Visitor_Ce:'Visitor center'}),
-  links:p=>[['Park website',url(p.URL)]]},
+  links:p=>[['Park website',checked(p.URL)]]},
  {group:'Protected land',id:'campgrounds',label:'State park campgrounds',sub:'65 campground entrances',
   src:'DCNR2/MapServer/28',
   fields:'Name,PARK_NAME,NUM_SITES,SEASON_MON,ELECTRIC,PETS_ALLOW,ADA_SITES,RESTROOMS,MAP_LINK',
@@ -822,7 +860,9 @@ const DATA=[
   rows:p=>[['Park',val(p.PARK_NAME)],['Sites',p.NUM_SITES>0?fmt(p.NUM_SITES):null],
     ['Open',p.SEASON_MON>0?p.SEASON_MON+' months a year':null],['Restrooms',val(p.RESTROOMS)]],
   chips:p=>permits(p,{ELECTRIC:'Electric hookups',PETS_ALLOW:'Pets allowed',ADA_SITES:'ADA sites'}),
-  links:p=>[['Park map',url(p.MAP_LINK)]]},
+  /* MAP_LINK is 60 dead dcnr.state.pa.us PDFs — the campground maps did not survive
+     the migration in any addressable form. The park's own page is what is left. */
+  links:p=>[['Official park page',parkPage(p.PARK_NAME)]]},
  {group:'Protected land',id:'conserved',desc:'Every kind of land held for conservation — federal, state, county, municipal and private trust — pooled into one inventory.',label:'Conserved land',sub:'Federal, state, local &amp; private holdings',
   srcs:['WeConservePA/MapServer/2','WeConservePA/MapServer/5','WeConservePA/MapServer/3','WeConservePA/MapServer/4'],
   fields:'*',simplify:0.0002,kind:'poly',dynamic:10,
@@ -1249,23 +1289,21 @@ map.getPane('pLab').style.pointerEvents='none';
 /* One shared canvas for every vector layer: separate canvas panes stack, and the
    topmost one swallows clicks meant for the layers beneath it. */
 /* tolerance pads every hit test on this canvas. A circleMarker is hit-tested on its
-   drawn radius alone, so a 6px dot is an unwinnable target with a fingertip — and
-   because _onClick keeps only the last containing layer, the miss lands on the
-   county polygon sharing this renderer, which filters and zooms the view away.
-   reorder() draws mkLayer last, so a marker within tolerance beats the county. */
+   drawn radius alone, so a 6px dot is an unwinnable target with a fingertip.
+   reorder() draws mkLayer last, so a marker within tolerance wins the hit test;
+   a genuine miss falls through to the map handler, which claims a near marker or
+   does nothing — counties are inert to clicks. */
 const REN=L.canvas({pane:'pVec',tolerance:COARSE?12:4});
 
 const countyLayer=L.geoJSON(null,{pane:'pVec',renderer:REN,style:countyStyle,
   onEachFeature:(f,l)=>{
-    l.on('mouseover',()=>l.setStyle({weight:2.2,color:ACCENT}))
-     .on('mouseout',()=>l.setStyle(countyStyle(f)))
-     /* Stopped either way: the map-level fallback below handles genuine misses,
-        and must not fire a second time on a click this handler already answered. */
-     .on('click',e=>{L.DomEvent.stop(e);
-        if(claimNearby(e.latlng)) return;
-        document.getElementById('county').value=f.properties.name;
-        applyFilters();map.fitBounds(l.getBounds(),{padding:[24,24]});})
-     .bindTooltip(()=>`${f.properties.name} County · ${fmt(state.byCounty[f.properties.name]||0)} markers`,{sticky:true});
+    /* Clicking a county deliberately does nothing: a tap that misses a marker used
+       to filter and zoom to the county under it, which is never what the miss meant.
+       Misses fall through to the map-level handler, which only claims near markers.
+       Hover highlight is pointer-only — on touch it fires on tap and reads as a hit. */
+    if(!COARSE) l.on('mouseover',()=>l.setStyle({weight:2.2,color:ACCENT}))
+     .on('mouseout',()=>l.setStyle(countyStyle(f)));
+    l.bindTooltip(()=>`${f.properties.name} County · ${fmt(state.byCounty[f.properties.name]||0)} markers`,{sticky:true});
   }});
 const mkLayer=L.layerGroup([],{pane:'pVec'}), labLayer=L.layerGroup([],{pane:'pLab'}),
       peakLayer=L.layerGroup([],{pane:'pPeak'});
@@ -1503,6 +1541,10 @@ async function boot(){
     fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/counties-10m.json').then(r=>r.json()),
     fetch('data/markers.json').then(r=>r.json())
   ]);
+  /* Not awaited with the pair above: a missing or slow link list must not hold up
+     the map, and checked() degrades to passing links through until it arrives. */
+  fetch('data/live-links.json').then(r=>r.json())
+    .then(d=>{LIVE=new Set(d.urls.map(url))}).catch(()=>{});
   const geo=topojson.feature(topo,topo.objects.counties);
   state.feats=geo.features.filter(f=>String(f.id).startsWith('42'));
   buildRings();
@@ -1768,7 +1810,7 @@ function renderResults(){
     }))});
 
   if(!groups.length){
-    box.innerHTML='<div class="rail-pad" style="font-size:13px;color:color-mix(in srgb,var(--color-text) 72%,transparent)">'
+    box.innerHTML='<div class="rail-pad" style="font-size:var(--text-sm);color:color-mix(in srgb,var(--color-text) 72%,transparent)">'
       +'Nothing matches'+(ql?' “'+esc(q)+'”':'')+'.'
       +(ql?'<br><span class="kicker">Layers are searched once you switch them on</span>':'')+'</div>';
     if(ql) announce('No results');
@@ -1856,8 +1898,8 @@ function select(m,fly){
       <dt>PHMC no.</dt><dd>${esc(m.id||'—')}</dd>
     </dl>
     <div style="margin-top:var(--space-3);display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}" target="_blank" rel="noopener" style="border-bottom:0">Directions</a>
-      <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?Search=Keyword&SearchFor=${encodeURIComponent(m.n)}" target="_blank" rel="noopener" style="border-bottom:0">HMdb</a>
+      <a class="btn btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lon}" target="_blank" rel="noopener">Directions</a>
+      <a class="btn btn-secondary" href="https://www.hmdb.org/results.asp?Search=Keyword&SearchFor=${encodeURIComponent(m.n)}" target="_blank" rel="noopener">HMdb</a>
     </div>`);
   applyFilters();
   writeHash(true);   /* its own history entry, so Back returns to the map */
@@ -1915,7 +1957,7 @@ function showFeature(d,p,nm,layer){
       <button class="res" id="nearMk" style="border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:9px 11px">
         <b>${esc(near.m.n)}</b><span>${near.mi<0.1?'on this spot':near.mi.toFixed(1)+' mi away'} · ${esc(near.m.c)} County</span></button>`:''}
     ${links.length?`<div style="margin-top:var(--space-4);display:flex;gap:8px;flex-wrap:wrap">${links.map(l=>
-      `<a class="btn btn-secondary" href="${esc(l[1])}" target="_blank" rel="noopener" style="border-bottom:0">${esc(l[0])}</a>`).join('')}</div>`:''}
+      `<a class="btn btn-secondary" href="${esc(l[1])}" target="_blank" rel="noopener">${esc(l[0])}</a>`).join('')}</div>`:''}
     <div class="loc" style="margin-top:var(--space-3);font-size:10.5px">Source: PASDA · ${esc(d.srcs?d.srcs[0]:d.src)}</div>`);
   const nb=document.getElementById('nearMk');
   if(nb) nb.addEventListener('click',()=>select(near.m,true));
@@ -2205,6 +2247,15 @@ document.getElementById('share').addEventListener('click',async e=>{
   setTimeout(()=>{b.textContent=was},1400);
 });
 map.on('click',e=>{ if(measure.on) measureAdd(e.latlng); else claimNearby(e.latlng); });
+
+/* See #railBody.scrolling above: the class is on while the rail scrolls and comes
+   off at the next real pointer move, which is also when :hover becomes true again. */
+{const rb=document.getElementById('railBody');
+ rb.addEventListener('scroll',()=>rb.classList.add('scrolling'),{passive:true});
+ /* Mouse only — a touch scroll is itself a stream of pointermove events, which
+    would clear the class on the very drag that set it. */
+ rb.addEventListener('pointermove',e=>{
+   if(e.pointerType==='mouse') rb.classList.remove('scrolling');},{passive:true});}
 map.on('dblclick',()=>{ if(measure.on){ measure.on=false;
   document.getElementById('measure').classList.remove('on');
   map.getContainer().style.cursor=''; } });
@@ -2262,10 +2313,10 @@ function scrimTo(a){
   scrimEl.classList.toggle('on',a>.02);
 }
 
-function makeSheet(el,{states,rest,onSettle}){
-  const grab=el.querySelector('.sheet-grab');
+function makeSheet(el,{states,rest,onSettle,bodyDrag=false}){
+  const grab=el.querySelector('.sheet-grab'), body=el.querySelector('.sheet-body');
   const snaps={closed:0,peek:0,half:0,full:0};
-  let cur=rest, drag=null;
+  let cur=rest, drag=null, bodySync=null;
 
   function measure(){
     const H=el.offsetHeight;
@@ -2293,23 +2344,35 @@ function makeSheet(el,{states,rest,onSettle}){
       el.classList.remove('dragging');
     } else paint(px(name));
     el.classList.toggle('up',name==='full');
+    if(bodySync) bodySync();
     if(onSettle) onSettle(name);
   }
 
-  grab.addEventListener('pointerdown',e=>{
+  /* Two drag surfaces. The grab bar engages on contact — that is all it is for.
+     The body only engages after the pointer has clearly committed to a vertical
+     drag, so a tap on a link inside the panel is still a tap. */
+  function begin(src,e,slop){
     if(e.button||!MOBILE.matches) return;
-    grab.setPointerCapture(e.pointerId);
-    el.classList.add('dragging');
-    drag={y0:e.clientY,start:px(cur),last:e.clientY,t:performance.now(),v:0};
-  });
-  grab.addEventListener('pointermove',e=>{
+    drag={y0:e.clientY,start:px(cur),last:e.clientY,t:performance.now(),v:0,src,slop,live:!slop};
+    if(!slop) { src.setPointerCapture(e.pointerId); el.classList.add('dragging'); }
+  }
+  function moved(e){
     if(!drag) return;
+    const dy=e.clientY-drag.y0;
+    if(!drag.live){
+      if(Math.abs(dy)<drag.slop) return;
+      /* Committed. Re-anchor to here so the sheet doesn't jump by the slop. */
+      drag.y0=e.clientY; drag.live=true;
+      drag.src.setPointerCapture(e.pointerId); el.classList.add('dragging');
+      return;
+    }
     const now=performance.now(), dt=now-drag.t;
     if(dt>0){ drag.v=(e.clientY-drag.last)/dt; drag.last=e.clientY; drag.t=now; }
     paint(Math.max(0,Math.min(snaps.full,drag.start-(e.clientY-drag.y0))));
-  });
+  }
   function release(e){
     if(!drag) return;
+    if(!drag.live){ drag=null; return; }        /* never passed the slop — a tap */
     const v=Math.max(0,Math.min(snaps.full,drag.start-(e.clientY-drag.y0))), vel=drag.v;
     drag=null;
     el.classList.remove('dragging');
@@ -2325,8 +2388,32 @@ function makeSheet(el,{states,rest,onSettle}){
     }
     to(target);
   }
+  grab.addEventListener('pointerdown',e=>begin(grab,e,0));
+  grab.addEventListener('pointermove',moved);
   grab.addEventListener('pointerup',release);
   grab.addEventListener('pointercancel',release);
+
+  if(bodyDrag){
+    /* Below full the body is not a scroller — the content is taller than the sheet
+       at every stop, so a swipe there means "raise this", not "scroll it". At full
+       the content scrolls normally, and only a pull starting at the very top hands
+       the gesture back to the sheet. --snap decides which, so keep touch-action in
+       step with it: the browser claims a pan before any handler runs otherwise. */
+    const sync=()=>{body.style.touchAction=
+      MOBILE.matches?(cur==='full'?'pan-y':'none'):''};
+    body.addEventListener('pointerdown',e=>{
+      if(cur==='full'&&body.scrollTop>0) return;
+      begin(body,e,8);
+    });
+    body.addEventListener('pointermove',e=>{
+      /* At full, an upward swipe from the top is scrolling, not dragging. */
+      if(drag&&!drag.live&&cur==='full'&&e.clientY<drag.y0){ drag=null; return; }
+      moved(e);
+    });
+    body.addEventListener('pointerup',release);
+    body.addEventListener('pointercancel',release);
+    bodySync=sync;
+  }
 
   measure();
   return {el,states,rest,measure,to,at:()=>cur,
@@ -2346,7 +2433,7 @@ const sheets={
      button does — clear the selection, drop the marker highlight and rewrite the
      hash — or the map stays selected under a dismissed sheet. closePanel drops
      .open before it snaps, so this cannot recurse. */
-  panel:makeSheet(panelEl,{states:['closed','half','full'],rest:'closed',
+  panel:makeSheet(panelEl,{states:['closed','half','full'],rest:'closed',bodyDrag:true,
     onSettle(n){ if(n==='closed'&&panelEl.classList.contains('open')) closePanel(); }})
 };
 
@@ -2356,7 +2443,10 @@ function raiseSheet(which,name){
   sheets[which].to(name);
 }
 function mobileSheetsReset(){
-  Object.values(sheets).forEach(s=>{ s.el.classList.remove('up'); s.el.style.removeProperty('--snap'); });
+  Object.values(sheets).forEach(s=>{ s.el.classList.remove('up'); s.el.style.removeProperty('--snap');
+    /* The desktop card is an ordinary scroller again, so the sheet's touch-action
+       must not follow it across the breakpoint. */
+    const b=s.el.querySelector('.sheet-body'); if(b) b.style.touchAction=''; });
   /* The rail forgets how far it was pulled out — coming back to a phone width
      with the drawer already wide open is startling. The panel keeps its position,
      because it has to agree with the .open class the desktop card runs on. */

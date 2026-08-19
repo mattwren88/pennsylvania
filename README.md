@@ -110,7 +110,11 @@ Some honesty about what the sources do and don't support:
 index.html                        the whole application
 data/markers.json                 parsed PHMC markers
 data/phmc-historical-markers.csv  the source export
+data/live-links.json              third-party park/trail URLs verified to still resolve
 tools/add-dedication-dates.mjs    copies dedication month/day into markers.json
+tools/check-layers.py             probes every PASDA source the page declares
+tools/check-links.py              re-verifies the links in data/live-links.json
+docs/site-health.md               what to check periodically, and how often
 assets/styles.css                 Classical design system (tokens + stylesheet)
 assets/favicon.svg                tab icon (+ favicon-180.png for iOS)
 assets/og.jpg                     1200×630 social preview card

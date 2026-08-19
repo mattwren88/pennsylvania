@@ -47,6 +47,22 @@
      text goes lighter still, to the normal cut (see the deck) */
   --font-body: "Lora", system-ui, sans-serif;
 
+  /* Type scale — one ramp for interface chrome (nav, rail, panels). Component
+     rules below and the map UI in index.html both read from it, so retuning the
+     interface's density is a change to these seven numbers. Display headings
+     (h1–h6) keep their own larger scale further down. */
+  --text-2xs: 11.5px;
+  --text-eyebrow: 14.5px; /* uppercase kickers — set at base: caps read smaller than lowercase at equal px */
+  --text-xs: 12.5px;
+  --text-sm: 13.5px;
+  --text-base: 14.5px;
+  --text-md: 16px;
+  --text-lg: 17.5px;
+  --text-xl: 20px;
+  --text-2xl: 23px;
+  --text-3xl: 26px;
+  --text-4xl: 34px;
+
   --space-1: 4.6px;
   --space-2: 9.2px;
   --space-3: 13.8px;
